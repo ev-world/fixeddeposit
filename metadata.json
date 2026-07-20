@@ -1,0 +1,6 @@
+{
+  "name": "Super Money Fixed Deposit",
+  "description": "A secure, banking-grade Fixed Deposit management system with advanced reporting, renewal histories, QR code verification, and receipt printing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
