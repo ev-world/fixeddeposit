@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../lib/supabase';
 import { calculateMaturityDate, calculateFDInterest, calculatePrematureClose } from '../lib/calculator';
 import { FDMaster, DBCustomer, CompanySettings, InterestMaster, TenureMaster } from '../types';
+import { convertNumberToWords } from '../lib/numberToWords';
 import PrintReceipt from './PrintReceipt';
 import { 
   PlusCircle, RefreshCw, Eye, Edit, Trash2, Printer, Search, 
@@ -923,6 +924,10 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                         className="block w-full pl-8 pr-3 py-2.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-mono font-bold text-slate-900 transition-all duration-200 focus:outline-none"
                       />
                     </div>
+                    <div className="mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xxs">
+                      <span className="text-slate-500 font-bold block uppercase tracking-wider mb-0.5">Amount in Words (Read Only)</span>
+                      <span className="text-slate-800 font-medium font-mono text-xs block">{convertNumberToWords(editFD.deposit_amount) || "Zero Rupees Only"}</span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1132,6 +1137,10 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                         className="block w-full pl-8 pr-3 py-2.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-mono font-bold text-slate-900 transition-all duration-200 focus:outline-none"
                       />
                     </div>
+                    <div className="mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xxs">
+                      <span className="text-slate-500 font-bold block uppercase tracking-wider mb-0.5">Amount in Words (Read Only)</span>
+                      <span className="text-slate-800 font-medium font-mono text-xs block">{convertNumberToWords(newFD.deposit_amount) || "Zero Rupees Only"}</span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1250,14 +1259,20 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
 
             <form onSubmit={handleRenewPlacement} className="p-6 space-y-5 text-left text-xs">
               
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex justify-between items-center">
-                <div>
-                  <span className="text-slate-400 text-xxs block">Original Certificate</span>
-                  <strong className="text-blue-950 font-mono text-sm">{renewFD.oldFDNumber}</strong>
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-slate-400 text-xxs block">Original Certificate</span>
+                    <strong className="text-blue-950 font-mono text-sm">{renewFD.oldFDNumber}</strong>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-400 text-xxs block">Maturity Roll Amount</span>
+                    <strong className="text-blue-950 font-mono text-sm">₹{renewFD.deposit_amount.toLocaleString()}</strong>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-slate-400 text-xxs block">Maturity Roll Amount</span>
-                  <strong className="text-blue-950 font-mono text-sm">₹{renewFD.deposit_amount.toLocaleString()}</strong>
+                <div className="mt-3 pt-3 border-t border-blue-200/50">
+                  <span className="text-slate-500 font-bold block uppercase tracking-wider text-[10px] mb-0.5">Amount in Words</span>
+                  <span className="text-blue-950 font-semibold font-mono text-xs block">{convertNumberToWords(renewFD.deposit_amount) || "Zero Rupees Only"}</span>
                 </div>
               </div>
 

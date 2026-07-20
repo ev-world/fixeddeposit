@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { FDMaster, DBCustomer, CompanySettings } from '../types';
 import { Printer, Download, X, BadgeCheck, ShieldAlert } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
+import { convertNumberToWords } from '../lib/numberToWords';
 
 interface PrintReceiptProps {
   fd: FDMaster;
@@ -246,6 +247,12 @@ Maturity Amount : ${formatCurrencyForQR(fd.maturity_amount)}
                       <td className="px-3 py-2 text-slate-800">{fd.interest_type}</td>
                       <td className="px-3 py-2 text-right text-amber-900 font-mono font-bold text-sm">
                         ₹{fd.maturity_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                    <tr className="border-t border-amber-900/10 bg-amber-50/10 text-xxs text-slate-700">
+                      <td colSpan={5} className="px-3 py-1.5 text-left">
+                        <span className="text-slate-500 font-bold uppercase tracking-wider block text-[9px] mb-0.5">Amount in Words</span>
+                        <strong className="text-amber-950 font-semibold font-mono text-xs">{convertNumberToWords(fd.deposit_amount)}</strong>
                       </td>
                     </tr>
                     <tr className="border-t border-amber-900/10 text-xxs text-slate-500 bg-amber-50/50">
