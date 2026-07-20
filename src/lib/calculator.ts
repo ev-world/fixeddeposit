@@ -63,35 +63,17 @@ export function calculateFDInterest(
     };
   }
 
-  const annualRate = R / 100;
   const years = M / 12;
+  const totalInterest = (P * R * years) / 100;
+  const maturityAmount = P + totalInterest;
 
-  let maturityAmount = 0;
-  let totalInterest = 0;
   let periodicPayout = 0;
-
-  if (interestType === 'Cumulative') {
-    // Compounded Yearly: A = P * (1 + R / 100) ^ Years
-    maturityAmount = P * Math.pow(1 + annualRate, years);
-    totalInterest = maturityAmount - P;
-    // Compounded, so no regular periodic payout is disbursed
-    periodicPayout = 0;
-  } else {
-    // Non-cumulative payouts: interest is simple interest paid out periodically, maturity is the principal.
-    // Total Simple Interest: I = P * R * T
-    totalInterest = P * annualRate * years;
-    maturityAmount = P; // Principal is returned at maturity, interest was already paid out
-
-    if (interestType === 'Monthly') {
-      // Periodic payout = P * (R / 1200)
-      periodicPayout = P * (R / 1200);
-    } else if (interestType === 'Quarterly') {
-      // Periodic payout = P * (R / 400)
-      periodicPayout = P * (R / 400);
-    } else if (interestType === 'Yearly') {
-      // Periodic payout = P * (R / 100) per year
-      periodicPayout = P * (annualRate);
-    }
+  if (interestType === 'Monthly') {
+    periodicPayout = (P * (R / 100)) / 12;
+  } else if (interestType === 'Quarterly') {
+    periodicPayout = (P * (R / 100)) / 4;
+  } else if (interestType === 'Yearly') {
+    periodicPayout = P * (R / 100);
   }
 
   // Round values cleanly to 2 decimal places

@@ -225,12 +225,21 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
       newFD.interest_type
     );
 
-    setNewFD(prev => ({
-      ...prev,
-      interest_rate: currentRate,
-      maturity_date: matDate,
-      maturity_amount: math.maturityAmount
-    }));
+    setNewFD(prev => {
+      if (
+        prev.interest_rate === currentRate &&
+        prev.maturity_date === matDate &&
+        prev.maturity_amount === math.maturityAmount
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        interest_rate: currentRate,
+        maturity_date: matDate,
+        maturity_amount: math.maturityAmount
+      };
+    });
   }, [
     newFD.customer_id, 
     newFD.deposit_amount, 
@@ -238,6 +247,7 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
     newFD.tenure_months, 
     newFD.interest_type, 
     newFD.isManualRate,
+    newFD.interest_rate,
     interests,
     customers
   ]);
