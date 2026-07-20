@@ -131,7 +131,11 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
     interest_rate: 7.25,
     interest_type: 'Cumulative' as 'Monthly' | 'Quarterly' | 'Yearly' | 'Cumulative',
     maturity_date: '',
-    maturity_amount: 0
+    maturity_amount: 0,
+    isManualRate: false,
+    renewalOption: 'PrincipalAndInterest' as 'PrincipalAndInterest' | 'PrincipalOnly' | 'Custom',
+    withdrawalAmount: 0,
+    interestPaid: 0
   });
 
   // Closing Form State
@@ -257,20 +261,42 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
   useEffect(() => {
     if (!renewFD.oldFDId) return;
 
+    // Auto calculate interest rate based on customer and tenure
+    let currentRate = renewFD.interest_rate;
+    if (!renewFD.isManualRate) {
+      const customer = customers.find(c => c.id === selectedFD?.customer_id);
+      const isSenior = customer ? isSeniorCitizen(customer.dob) : false;
+      const category = isSenior ? 'Senior Citizen' : 'Regular';
+      
+      const slab = interests.find(
+        r => r.category === category && 
+        renewFD.tenure_months >= r.tenure_months_min && 
+        renewFD.tenure_months <= r.tenure_months_max
+      );
+      if (slab) {
+        currentRate = slab.interest_rate;
+      }
+    }
+
     const matDate = calculateMaturityDate(renewFD.deposit_date, renewFD.tenure_months);
     const math = calculateFDInterest(
       renewFD.deposit_amount,
-      renewFD.interest_rate,
+      currentRate,
       renewFD.tenure_months,
       renewFD.interest_type
     );
 
     setRenewFD(prev => {
-      if (prev.maturity_date === matDate && prev.maturity_amount === math.maturityAmount) {
+      if (
+        prev.interest_rate === currentRate &&
+        prev.maturity_date === matDate &&
+        prev.maturity_amount === math.maturityAmount
+      ) {
         return prev;
       }
       return {
         ...prev,
+        interest_rate: currentRate,
         maturity_date: matDate,
         maturity_amount: math.maturityAmount
       };
@@ -280,8 +306,12 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
     renewFD.deposit_date, 
     renewFD.tenure_months, 
     renewFD.interest_type, 
+    renewFD.isManualRate,
     renewFD.interest_rate,
-    renewFD.oldFDId
+    renewFD.oldFDId,
+    interests,
+    customers,
+    selectedFD
   ]);
 
   // --- MATH TRIGGERS FOR EDIT MODE ---
@@ -442,20 +472,109 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
       oldFDId: fd.id,
       oldFDNumber: fd.fd_number,
       deposit_amount: fd.maturity_amount, // Default rollover principal is the maturity amount
-      deposit_date: new Date().toISOString().split('T')[0],
+      deposit_date: fd.maturity_date, // Filled with previous FD's maturity date
       deposit_time: new Date().toLocaleTimeString('en-US', { hour12: false }).substring(0, 5),
       tenure_months: fd.tenure_months,
       interest_rate: fd.interest_rate,
       interest_type: fd.interest_type,
       maturity_date: '',
-      maturity_amount: 0
+      maturity_amount: 0,
+      isManualRate: false,
+      renewalOption: 'PrincipalAndInterest',
+      withdrawalAmount: 0,
+      interestPaid: 0
     });
     setShowRenewForm(true);
   };
 
+  const handleRenewalOptionChange = (option: 'PrincipalAndInterest' | 'PrincipalOnly' | 'Custom') => {
+    if (!selectedFD) return;
+    const oldMaturityAmount = selectedFD.maturity_amount;
+    const oldDepositAmount = selectedFD.deposit_amount;
+    const oldInterestEarned = Math.max(0, oldMaturityAmount - oldDepositAmount);
+
+    let nextDepositAmount = oldMaturityAmount;
+    let nextWithdrawalAmount = 0;
+    let nextInterestPaid = 0;
+
+    if (option === 'PrincipalAndInterest') {
+      nextDepositAmount = oldMaturityAmount;
+      nextWithdrawalAmount = 0;
+      nextInterestPaid = 0;
+    } else if (option === 'PrincipalOnly') {
+      nextDepositAmount = oldDepositAmount;
+      nextWithdrawalAmount = oldInterestEarned;
+      nextInterestPaid = oldInterestEarned;
+    } else if (option === 'Custom') {
+      nextDepositAmount = oldMaturityAmount;
+      nextWithdrawalAmount = 0;
+      nextInterestPaid = 0;
+    }
+
+    setRenewFD(prev => ({
+      ...prev,
+      renewalOption: option,
+      deposit_amount: nextDepositAmount,
+      withdrawalAmount: nextWithdrawalAmount,
+      interestPaid: nextInterestPaid
+    }));
+  };
+
+  const handleCustomRenewalAmountChange = (val: number) => {
+    if (!selectedFD) return;
+    const oldMaturityAmount = selectedFD.maturity_amount;
+    const oldDepositAmount = selectedFD.deposit_amount;
+    const oldInterestEarned = Math.max(0, oldMaturityAmount - oldDepositAmount);
+
+    const nextDepositAmount = val;
+    const nextWithdrawalAmount = Math.max(0, oldMaturityAmount - val);
+    const nextInterestPaid = Math.min(nextWithdrawalAmount, oldInterestEarned);
+
+    setRenewFD(prev => ({
+      ...prev,
+      deposit_amount: nextDepositAmount,
+      withdrawalAmount: nextWithdrawalAmount,
+      interestPaid: nextInterestPaid
+    }));
+  };
+
+  const handleCustomWithdrawalAmountChange = (val: number) => {
+    if (!selectedFD) return;
+    const oldMaturityAmount = selectedFD.maturity_amount;
+    const oldDepositAmount = selectedFD.deposit_amount;
+    const oldInterestEarned = Math.max(0, oldMaturityAmount - oldDepositAmount);
+
+    const nextWithdrawalAmount = val;
+    const nextDepositAmount = Math.max(0, oldMaturityAmount - val);
+    const nextInterestPaid = Math.min(nextWithdrawalAmount, oldInterestEarned);
+
+    setRenewFD(prev => ({
+      ...prev,
+      deposit_amount: nextDepositAmount,
+      withdrawalAmount: nextWithdrawalAmount,
+      interestPaid: nextInterestPaid
+    }));
+  };
+
   const handleRenewPlacement = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const maxAmount = selectedFD ? selectedFD.maturity_amount : 0;
+    if (renewFD.deposit_amount > maxAmount) {
+      showToast('error', 'Renewal Amount cannot exceed the Maturity Amount.');
+      return;
+    }
+    if (renewFD.withdrawalAmount > maxAmount) {
+      showToast('error', 'Withdrawal Amount cannot exceed the Maturity Amount.');
+      return;
+    }
+    if (renewFD.deposit_amount <= 0) {
+      showToast('error', 'Renewal Amount must be greater than zero.');
+      return;
+    }
+
     setConfirmDialog({
+
       show: true,
       title: 'Rollover & Renew FD Certificate',
       message: `Are you sure you want to rollover and Renew Fixed Deposit Certificate ${renewFD.oldFDNumber}?`,
@@ -1267,12 +1386,112 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                   </div>
                   <div className="text-right">
                     <span className="text-slate-400 text-xxs block">Maturity Roll Amount</span>
-                    <strong className="text-blue-950 font-mono text-sm">₹{renewFD.deposit_amount.toLocaleString()}</strong>
+                    <strong className="text-blue-950 font-mono text-sm">₹{(selectedFD?.maturity_amount || 0).toLocaleString()}</strong>
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-blue-200/50">
                   <span className="text-slate-500 font-bold block uppercase tracking-wider text-[10px] mb-0.5">Amount in Words</span>
-                  <span className="text-blue-950 font-semibold font-mono text-xs block">{convertNumberToWords(renewFD.deposit_amount) || "Zero Rupees Only"}</span>
+                  <span className="text-blue-950 font-semibold font-mono text-xs block">{convertNumberToWords(selectedFD?.maturity_amount || 0) || "Zero Rupees Only"}</span>
+                </div>
+              </div>
+
+              {/* --- RENEWAL OPTIONS --- */}
+              <div className="space-y-3">
+                <label className="block text-xxs font-bold text-slate-600 uppercase tracking-wider">Renewal Option</label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleRenewalOptionChange('PrincipalAndInterest')}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                      renewFD.renewalOption === 'PrincipalAndInterest'
+                        ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="font-bold text-xs">Principal + Interest</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">Roll over complete ₹{(selectedFD?.maturity_amount || 0).toLocaleString()}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRenewalOptionChange('PrincipalOnly')}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                      renewFD.renewalOption === 'PrincipalOnly'
+                        ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="font-bold text-xs">Principal Only</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">Roll over principal ₹{(selectedFD?.deposit_amount || 0).toLocaleString()}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRenewalOptionChange('Custom')}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                      renewFD.renewalOption === 'Custom'
+                        ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="font-bold text-xs">Custom Amount</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">Enter custom split</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* --- FINANCIAL SPLIT DETAILS --- */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 grid grid-cols-3 gap-3.5">
+                <div>
+                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Renewal Amount</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                    <input
+                      type="number"
+                      disabled={renewFD.renewalOption !== 'Custom'}
+                      value={renewFD.deposit_amount}
+                      onChange={(e) => handleCustomRenewalAmountChange(parseFloat(e.target.value) || 0)}
+                      className={`block w-full pl-6 pr-2 py-1.5 border rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        renewFD.renewalOption === 'Custom'
+                          ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500'
+                          : 'bg-slate-100/80 border-slate-200 text-slate-500 cursor-not-allowed'
+                      }`}
+                    />
+                  </div>
+                  <span className="text-[9px] text-slate-400 mt-0.5 block">New deposit principal</span>
+                </div>
+
+                <div>
+                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Withdrawal Amount</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                    <input
+                      type="number"
+                      disabled={renewFD.renewalOption !== 'Custom'}
+                      value={renewFD.withdrawalAmount}
+                      onChange={(e) => handleCustomWithdrawalAmountChange(parseFloat(e.target.value) || 0)}
+                      className={`block w-full pl-6 pr-2 py-1.5 border rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        renewFD.renewalOption === 'Custom'
+                          ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500'
+                          : 'bg-slate-100/80 border-slate-200 text-slate-500 cursor-not-allowed'
+                      }`}
+                    />
+                  </div>
+                  <span className="text-[9px] text-slate-400 mt-0.5 block">Refund to customer</span>
+                </div>
+
+                <div>
+                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Interest Paid (Old FD)</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                    <input
+                      type="text"
+                      disabled
+                      value={renewFD.interestPaid.toLocaleString()}
+                      className="block w-full pl-6 pr-2 py-1.5 border border-slate-200 bg-slate-100/80 text-slate-500 rounded-lg text-xs font-mono font-bold cursor-not-allowed"
+                    />
+                  </div>
+                  <span className="text-[9px] text-slate-400 mt-0.5 block">Old interest paid out</span>
                 </div>
               </div>
 
@@ -1283,7 +1502,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                     type="date"
                     required
                     value={renewFD.deposit_date}
-                    onChange={(e) => setRenewFD({ ...renewFD, deposit_date: e.target.value })}
+                    onChange={(e) => setRenewFD({ ...renewFD, deposit_date: e.target.value, isManualRate: false })}
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
                   />
                 </div>
@@ -1293,7 +1512,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                     <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Tenure</label>
                     <select
                       value={renewFD.tenure_months}
-                      onChange={(e) => setRenewFD({ ...renewFD, tenure_months: parseInt(e.target.value, 10) || 1 })}
+                      onChange={(e) => setRenewFD({ ...renewFD, tenure_months: parseInt(e.target.value, 10) || 1, isManualRate: false })}
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
                     >
                       {tenures.map(t => (
@@ -1306,7 +1525,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                     <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Scheme</label>
                     <select
                       value={renewFD.interest_type}
-                      onChange={(e) => setRenewFD({ ...renewFD, interest_type: e.target.value as any })}
+                      onChange={(e) => setRenewFD({ ...renewFD, interest_type: e.target.value as any, isManualRate: false })}
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
                     >
                       <option value="Cumulative">Cumulative</option>
@@ -1328,7 +1547,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                       min="0"
                       required
                       value={renewFD.interest_rate}
-                      onChange={(e) => setRenewFD({ ...renewFD, interest_rate: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setRenewFD({ ...renewFD, interest_rate: parseFloat(e.target.value) || 0, isManualRate: true })}
                       className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     />
                   ) : (
