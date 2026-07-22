@@ -129,6 +129,34 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 9. Create FD RENEWAL LEDGER Table
+CREATE TABLE IF NOT EXISTS fd_renewal_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+  customer_name VARCHAR(255) NOT NULL,
+  mobile_number VARCHAR(20) NOT NULL,
+  old_fd_number VARCHAR(50) NOT NULL,
+  new_fd_number VARCHAR(50) NOT NULL,
+  parent_fd_number VARCHAR(50) NOT NULL,
+  renewal_date DATE NOT NULL,
+  original_deposit_amount NUMERIC(15, 2) NOT NULL,
+  interest_earned NUMERIC(15, 2) NOT NULL,
+  total_maturity_amount NUMERIC(15, 2) NOT NULL,
+  additional_deposit NUMERIC(15, 2) NOT NULL,
+  withdrawal_amount NUMERIC(15, 2) NOT NULL,
+  final_renewal_amount NUMERIC(15, 2) NOT NULL,
+  interest_rate NUMERIC(5, 2) NOT NULL,
+  tenure INT NOT NULL,
+  old_maturity_date DATE NOT NULL,
+  new_deposit_date DATE NOT NULL,
+  new_maturity_date DATE NOT NULL,
+  renew_count INT NOT NULL,
+  renewal_option VARCHAR(100),
+  remarks TEXT,
+  created_by VARCHAR(100),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Seed Initial Settings if empty
 INSERT INTO company_settings (id, company_name, company_address, phone, email, fd_prefix, next_fd_seq)
 VALUES ('00000000-0000-0000-0000-000000000001', 'Super Money Fixed Deposit', '123 Banking Enclave, Financial District, New Delhi - 110001', '+91 98765 43210', 'info@supermoneyfd.com', 'FD', 1)
@@ -166,4 +194,5 @@ ALTER TABLE interest_master DISABLE ROW LEVEL SECURITY;
 ALTER TABLE tenure_master DISABLE ROW LEVEL SECURITY;
 ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE fd_renewal_ledger DISABLE ROW LEVEL SECURITY;
 `;

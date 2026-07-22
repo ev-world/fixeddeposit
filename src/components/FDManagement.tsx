@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/supabase';
 import { calculateMaturityDate, calculateFDInterest, calculatePrematureClose } from '../lib/calculator';
-import { FDMaster, DBCustomer, CompanySettings, InterestMaster, TenureMaster } from '../types';
+import { FDMaster, DBCustomer, CompanySettings, InterestMaster, TenureMaster, FDRenewalLedger } from '../types';
 import { convertNumberToWords } from '../lib/numberToWords';
 import PrintReceipt from './PrintReceipt';
 import { 
@@ -91,7 +91,24 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Renewed' | 'Closed' | 'Premature Closed' | 'Matured'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Renewed' | 'Closed' | 'Premature Closed' | 'Matured' | 'FD Renewal Ledger'>('All');
+
+  // Renewal Ledger State
+  const [renewalLedgers, setRenewalLedgers] = useState<FDRenewalLedger[]>([]);
+  const [ledgerSearchInput, setLedgerSearchInput] = useState({
+    customerName: '',
+    mobileNumber: '',
+    oldFDNumber: '',
+    newFDNumber: ''
+  });
+  const [ledgerSearchQuery, setLedgerSearchQuery] = useState({
+    customerName: '',
+    mobileNumber: '',
+    oldFDNumber: '',
+    newFDNumber: ''
+  });
+  const [selectedLedger, setSelectedLedger] = useState<FDRenewalLedger | null>(null);
+  const [showLedgerModal, setShowLedgerModal] = useState(false);
 
   // Modals state
   const [showPlacementForm, setShowPlacementForm] = useState(false);
@@ -135,7 +152,8 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
     isManualRate: false,
     renewalOption: 'PrincipalAndInterest' as 'PrincipalAndInterest' | 'PrincipalOnly' | 'Custom',
     withdrawalAmount: 0,
-    interestPaid: 0
+    interestPaid: 0,
+    remarks: ''
   });
 
   // Closing Form State
@@ -182,12 +200,14 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
       const rates = await db.getInterestRates();
       const tens = await db.getTenures();
       const sets = await db.getSettings();
+      const allLedgers = await db.getRenewalLedgers();
 
       setFds(allFDs);
       setCustomers(allCust);
       setInterests(rates);
       setTenures(tens);
       setSettings(sets);
+      setRenewalLedgers(allLedgers);
     } catch (err) {
       console.error(err);
     } finally {
@@ -199,6 +219,60 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
     setToast({ type, message });
     setTimeout(() => setToast(null), 4000);
   };
+
+  const isAnyModalOpen = showRenewForm || showLedgerModal || confirmDialog.show || showPlacementForm || showEditForm || showCloseForm || showViewModal || showEditConfirm || !!toast;
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isAnyModalOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (confirmDialog.show) {
+          setConfirmDialog(prev => ({ ...prev, show: false }));
+        } else if (showRenewForm) {
+          setShowRenewForm(false);
+        } else if (showLedgerModal) {
+          setShowLedgerModal(false);
+        } else if (showPlacementForm) {
+          setShowPlacementForm(false);
+        } else if (showEditForm) {
+          setShowEditForm(false);
+        } else if (showCloseForm) {
+          setShowCloseForm(false);
+        } else if (showViewModal) {
+          setShowViewModal(false);
+        } else if (showEditConfirm) {
+          setShowEditConfirm(false);
+        } else if (toast) {
+          setToast(null);
+        }
+      } else if (e.key === 'Enter') {
+        if (confirmDialog.show) {
+          e.preventDefault();
+          confirmDialog.onConfirm();
+        } else if (showEditConfirm) {
+          e.preventDefault();
+          confirmUpdateFD();
+        }
+      }
+    };
+
+    if (isAnyModalOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAnyModalOpen, confirmDialog, showRenewForm, showLedgerModal, showPlacementForm, showEditForm, showCloseForm, showViewModal, showEditConfirm, toast]);
 
   // --- MATH TRIGGERS FOR PLACEMENT ---
   useEffect(() => {
@@ -482,7 +556,8 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
       isManualRate: false,
       renewalOption: 'PrincipalAndInterest',
       withdrawalAmount: 0,
-      interestPaid: 0
+      interestPaid: 0,
+      remarks: ''
     });
     setShowRenewForm(true);
   };
@@ -590,7 +665,11 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
             interest_rate: renewFD.interest_rate,
             interest_type: renewFD.interest_type,
             maturity_date: renewFD.maturity_date,
-            maturity_amount: renewFD.maturity_amount
+            maturity_amount: renewFD.maturity_amount,
+            withdrawal_amount: renewFD.withdrawalAmount,
+            additional_deposit: Math.max(0, renewFD.deposit_amount - (selectedFD ? selectedFD.maturity_amount : 0)),
+            renewal_option: renewFD.renewalOption,
+            remarks: renewFD.remarks || ''
           }, 'Admin');
 
           showToast('success', `Rollover Successful. New sequential FD generated.`);
@@ -780,7 +859,30 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
     setShowViewModal(true);
   };
 
-  // Filter logic
+  // Ledger Search Handlers
+  const handleLedgerSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLedgerSearchQuery({ ...ledgerSearchInput });
+    setCurrentPage(1);
+  };
+
+  const handleLedgerSearchReset = () => {
+    setLedgerSearchInput({
+      customerName: '',
+      mobileNumber: '',
+      oldFDNumber: '',
+      newFDNumber: ''
+    });
+    setLedgerSearchQuery({
+      customerName: '',
+      mobileNumber: '',
+      oldFDNumber: '',
+      newFDNumber: ''
+    });
+    setCurrentPage(1);
+  };
+
+  // Filter logic for standard FDs
   const filteredFDs = fds.filter(f => {
     const term = searchTerm.toLowerCase();
     const matchesSearch = (
@@ -794,13 +896,30 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
     const todayStr = new Date().toISOString().split('T')[0];
     if (statusFilter === 'All') return matchesSearch;
     if (statusFilter === 'Matured') return matchesSearch && f.status === 'Active' && f.maturity_date <= todayStr;
+    if (statusFilter === 'FD Renewal Ledger') return false;
     return matchesSearch && f.status === statusFilter;
   });
 
+  // Filter logic for Renewal Ledger
+  const filteredLedgers = renewalLedgers.filter(l => {
+    if (ledgerSearchQuery.customerName && !l.customer_name.toLowerCase().includes(ledgerSearchQuery.customerName.toLowerCase())) return false;
+    if (ledgerSearchQuery.mobileNumber && !l.mobile_number.includes(ledgerSearchQuery.mobileNumber)) return false;
+    if (ledgerSearchQuery.oldFDNumber && !l.old_fd_number.toLowerCase().includes(ledgerSearchQuery.oldFDNumber.toLowerCase())) return false;
+    if (ledgerSearchQuery.newFDNumber && !l.new_fd_number.toLowerCase().includes(ledgerSearchQuery.newFDNumber.toLowerCase())) return false;
+    return true;
+  });
+
   // Pagination calculation
-  const totalItems = filteredFDs.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const isLedgerTab = statusFilter === 'FD Renewal Ledger';
+  const totalItems = isLedgerTab ? filteredLedgers.length : filteredFDs.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  
   const paginatedFDs = filteredFDs.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const paginatedLedgers = filteredLedgers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -910,24 +1029,29 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
 
       {/* Generic Custom Confirmation Overlay Dialog */}
       {confirmDialog.show && (
-        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-md z-[9999] flex justify-center items-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 p-6 text-center space-y-4">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border ${
-              confirmDialog.isDanger 
-                ? 'bg-red-50 text-red-600 border-red-100' 
-                : 'bg-blue-50 text-blue-600 border-blue-100'
-            }`}>
-              <HelpCircle className="h-8 w-8 animate-bounce" />
-            </div>
+        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-md z-[99999] flex justify-center items-center p-4 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-[500px] max-h-[90vh] border border-slate-100 flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in duration-200">
             
-            <div className="space-y-1.5 text-center">
-              <h3 className="text-lg font-bold text-slate-900">{confirmDialog.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                {confirmDialog.message}
-              </p>
+            {/* Scrollable Content */}
+            <div className="p-6 text-center space-y-4 overflow-y-auto flex-1">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border ${
+                confirmDialog.isDanger 
+                  ? 'bg-red-50 text-red-600 border-red-100' 
+                  : 'bg-blue-50 text-blue-600 border-blue-100'
+              }`}>
+                <HelpCircle className="h-8 w-8 animate-bounce" />
+              </div>
+              
+              <div className="space-y-1.5 text-center">
+                <h3 className="text-lg font-bold text-slate-900">{confirmDialog.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {confirmDialog.message}
+                </p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            {/* Fixed Footer */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 grid grid-cols-2 gap-3 shrink-0 rounded-b-2xl">
               <button
                 type="button"
                 onClick={() => setConfirmDialog(prev => ({ ...prev, show: false }))}
@@ -944,7 +1068,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                     : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
                 }`}
               >
-                {confirmDialog.confirmText || 'Yes, Proceed'}
+                {confirmDialog.confirmText || 'Confirm'}
               </button>
             </div>
           </div>
@@ -1363,216 +1487,253 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
 
       {/* --- FORM MODAL: FD RENEWAL --- */}
       {showRenewForm && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex justify-center items-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-100">
-            <div className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 sm:p-6 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-[900px] max-h-[90vh] border border-slate-100 flex flex-col my-auto overflow-hidden">
+            
+            {/* FIXED HEADER AT TOP */}
+            <div className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl shrink-0 border-b border-slate-800">
               <div>
-                <h3 className="text-md font-bold flex items-center gap-2">
+                <h3 className="text-base font-bold flex items-center gap-2">
                   <RefreshCw className="text-blue-500 h-5 w-5 animate-spin-slow" />
                   Fixed Deposit Rollover (Renewal)
                 </h3>
                 <p className="text-xxs text-slate-400 mt-0.5">Rolls over the deposit balance into a fresh sequential ledger.</p>
               </div>
-              <button onClick={() => setShowRenewForm(false)} className="text-slate-400 hover:text-white cursor-pointer"><X className="h-5 w-5" /></button>
+              <button 
+                type="button" 
+                onClick={() => setShowRenewForm(false)} 
+                className="text-slate-400 hover:text-white cursor-pointer p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                title="Close (Esc)"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleRenewPlacement} className="p-6 space-y-5 text-left text-xs">
+            {/* FORM WRAPPER FOR SCROLLABLE BODY AND FIXED FOOTER */}
+            <form onSubmit={handleRenewPlacement} className="flex flex-col flex-1 overflow-hidden">
               
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
-                <div className="flex justify-between items-center">
+              {/* SCROLLABLE BODY */}
+              <div className="p-6 overflow-y-auto space-y-5 text-left text-xs flex-1">
+                
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-slate-400 text-xxs block">Original Certificate</span>
+                      <strong className="text-blue-950 font-mono text-sm">{renewFD.oldFDNumber}</strong>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 text-xxs block">Maturity Roll Amount</span>
+                      <strong className="text-blue-950 font-mono text-sm">₹{(selectedFD?.maturity_amount || 0).toLocaleString()}</strong>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-blue-200/50">
+                    <span className="text-slate-500 font-bold block uppercase tracking-wider text-[10px] mb-0.5">Amount in Words</span>
+                    <span className="text-blue-950 font-semibold font-mono text-xs block">{convertNumberToWords(selectedFD?.maturity_amount || 0) || "Zero Rupees Only"}</span>
+                  </div>
+                </div>
+
+                {/* --- RENEWAL OPTIONS --- */}
+                <div className="space-y-3">
+                  <label className="block text-xxs font-bold text-slate-600 uppercase tracking-wider">Renewal Option</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRenewalOptionChange('PrincipalAndInterest')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                        renewFD.renewalOption === 'PrincipalAndInterest'
+                          ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm font-bold'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="font-bold text-xs">Principal + Interest</span>
+                      <span className="text-[10px] text-slate-500 mt-0.5">Roll over complete ₹{(selectedFD?.maturity_amount || 0).toLocaleString()}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRenewalOptionChange('PrincipalOnly')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                        renewFD.renewalOption === 'PrincipalOnly'
+                          ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm font-bold'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="font-bold text-xs">Principal Only</span>
+                      <span className="text-[10px] text-slate-500 mt-0.5">Roll over principal ₹{(selectedFD?.deposit_amount || 0).toLocaleString()}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRenewalOptionChange('Custom')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                        renewFD.renewalOption === 'Custom'
+                          ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm font-bold'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="font-bold text-xs">Custom Amount</span>
+                      <span className="text-[10px] text-slate-500 mt-0.5">Enter custom split</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* --- FINANCIAL SPLIT DETAILS --- */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div>
-                    <span className="text-slate-400 text-xxs block">Original Certificate</span>
-                    <strong className="text-blue-950 font-mono text-sm">{renewFD.oldFDNumber}</strong>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Renewal Amount</label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                      <input
+                        type="number"
+                        disabled={renewFD.renewalOption !== 'Custom'}
+                        value={renewFD.deposit_amount}
+                        onChange={(e) => handleCustomRenewalAmountChange(parseFloat(e.target.value) || 0)}
+                        className={`block w-full pl-6 pr-2 py-1.5 border rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          renewFD.renewalOption === 'Custom'
+                            ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500'
+                            : 'bg-slate-100/80 border-slate-200 text-slate-500 cursor-not-allowed'
+                        }`}
+                      />
+                    </div>
+                    <span className="text-[9px] text-slate-400 mt-0.5 block">New deposit principal</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-slate-400 text-xxs block">Maturity Roll Amount</span>
-                    <strong className="text-blue-950 font-mono text-sm">₹{(selectedFD?.maturity_amount || 0).toLocaleString()}</strong>
+
+                  <div>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Withdrawal Amount</label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                      <input
+                        type="number"
+                        disabled={renewFD.renewalOption !== 'Custom'}
+                        value={renewFD.withdrawalAmount}
+                        onChange={(e) => handleCustomWithdrawalAmountChange(parseFloat(e.target.value) || 0)}
+                        className={`block w-full pl-6 pr-2 py-1.5 border rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          renewFD.renewalOption === 'Custom'
+                            ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500'
+                            : 'bg-slate-100/80 border-slate-200 text-slate-500 cursor-not-allowed'
+                        }`}
+                      />
+                    </div>
+                    <span className="text-[9px] text-slate-400 mt-0.5 block">Refund to customer</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Interest Paid (Old FD)</label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                      <input
+                        type="text"
+                        disabled
+                        value={renewFD.interestPaid.toLocaleString()}
+                        className="block w-full pl-6 pr-2 py-1.5 border border-slate-200 bg-slate-100/80 text-slate-500 rounded-lg text-xs font-mono font-bold cursor-not-allowed"
+                      />
+                    </div>
+                    <span className="text-[9px] text-slate-400 mt-0.5 block">Old interest paid out</span>
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-blue-200/50">
-                  <span className="text-slate-500 font-bold block uppercase tracking-wider text-[10px] mb-0.5">Amount in Words</span>
-                  <span className="text-blue-950 font-semibold font-mono text-xs block">{convertNumberToWords(selectedFD?.maturity_amount || 0) || "Zero Rupees Only"}</span>
-                </div>
-              </div>
 
-              {/* --- RENEWAL OPTIONS --- */}
-              <div className="space-y-3">
-                <label className="block text-xxs font-bold text-slate-600 uppercase tracking-wider">Renewal Option</label>
-                <div className="grid grid-cols-3 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => handleRenewalOptionChange('PrincipalAndInterest')}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
-                      renewFD.renewalOption === 'PrincipalAndInterest'
-                        ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="font-bold text-xs">Principal + Interest</span>
-                    <span className="text-[10px] text-slate-500 mt-0.5">Roll over complete ₹{(selectedFD?.maturity_amount || 0).toLocaleString()}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRenewalOptionChange('PrincipalOnly')}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
-                      renewFD.renewalOption === 'PrincipalOnly'
-                        ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="font-bold text-xs">Principal Only</span>
-                    <span className="text-[10px] text-slate-500 mt-0.5">Roll over principal ₹{(selectedFD?.deposit_amount || 0).toLocaleString()}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRenewalOptionChange('Custom')}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
-                      renewFD.renewalOption === 'Custom'
-                        ? 'border-blue-600 bg-blue-50/50 text-blue-900 shadow-sm'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="font-bold text-xs">Custom Amount</span>
-                    <span className="text-[10px] text-slate-500 mt-0.5">Enter custom split</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* --- FINANCIAL SPLIT DETAILS --- */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 grid grid-cols-3 gap-3.5">
-                <div>
-                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Renewal Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Renewal Placement Date</label>
                     <input
-                      type="number"
-                      disabled={renewFD.renewalOption !== 'Custom'}
-                      value={renewFD.deposit_amount}
-                      onChange={(e) => handleCustomRenewalAmountChange(parseFloat(e.target.value) || 0)}
-                      className={`block w-full pl-6 pr-2 py-1.5 border rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        renewFD.renewalOption === 'Custom'
-                          ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500'
-                          : 'bg-slate-100/80 border-slate-200 text-slate-500 cursor-not-allowed'
-                      }`}
+                      type="date"
+                      required
+                      value={renewFD.deposit_date}
+                      onChange={(e) => setRenewFD({ ...renewFD, deposit_date: e.target.value, isManualRate: false })}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
                     />
                   </div>
-                  <span className="text-[9px] text-slate-400 mt-0.5 block">New deposit principal</span>
-                </div>
 
-                <div>
-                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Withdrawal Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
-                    <input
-                      type="number"
-                      disabled={renewFD.renewalOption !== 'Custom'}
-                      value={renewFD.withdrawalAmount}
-                      onChange={(e) => handleCustomWithdrawalAmountChange(parseFloat(e.target.value) || 0)}
-                      className={`block w-full pl-6 pr-2 py-1.5 border rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        renewFD.renewalOption === 'Custom'
-                          ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500'
-                          : 'bg-slate-100/80 border-slate-200 text-slate-500 cursor-not-allowed'
-                      }`}
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Tenure</label>
+                      <select
+                        value={renewFD.tenure_months}
+                        onChange={(e) => setRenewFD({ ...renewFD, tenure_months: parseInt(e.target.value, 10) || 1, isManualRate: false })}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
+                      >
+                        {tenures.map(t => (
+                          <option key={t.id} value={t.months}>{t.tenure_label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Scheme</label>
+                      <select
+                        value={renewFD.interest_type}
+                        onChange={(e) => setRenewFD({ ...renewFD, interest_type: e.target.value as any, isManualRate: false })}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
+                      >
+                        <option value="Cumulative">Cumulative</option>
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="Yearly">Yearly</option>
+                      </select>
+                    </div>
                   </div>
-                  <span className="text-[9px] text-slate-400 mt-0.5 block">Refund to customer</span>
                 </div>
 
-                <div>
-                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Interest Paid (Old FD)</label>
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
-                    <input
-                      type="text"
-                      disabled
-                      value={renewFD.interestPaid.toLocaleString()}
-                      className="block w-full pl-6 pr-2 py-1.5 border border-slate-200 bg-slate-100/80 text-slate-500 rounded-lg text-xs font-mono font-bold cursor-not-allowed"
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Interest Rate (%)</label>
+                    {isAdmin ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={renewFD.interest_rate}
+                        onChange={(e) => setRenewFD({ ...renewFD, interest_rate: parseFloat(e.target.value) || 0, isManualRate: true })}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      />
+                    ) : (
+                      <strong className="text-emerald-700 text-sm font-bold block">{renewFD.interest_rate.toFixed(2)}%</strong>
+                    )}
                   </div>
-                  <span className="text-[9px] text-slate-400 mt-0.5 block">Old interest paid out</span>
+                  <div className="text-right sm:text-right">
+                    <span className="text-slate-400 text-xxs block mb-1">New Maturity Date</span>
+                    <strong className="text-slate-900 text-sm font-mono block font-bold">{renewFD.maturity_date}</strong>
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow-lg">
+                  <div>
+                    <span className="text-slate-400 text-xxs uppercase tracking-wider block font-bold">New Maturity Amount</span>
+                    <h4 className="text-lg font-mono font-bold text-blue-400 mt-0.5">₹{renewFD.maturity_amount.toLocaleString()}</h4>
+                  </div>
+                  <span className="text-xxs text-slate-400">Rollover count automatically increments.</span>
+                </div>
+
                 <div>
-                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Renewal Placement Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={renewFD.deposit_date}
-                    onChange={(e) => setRenewFD({ ...renewFD, deposit_date: e.target.value, isManualRate: false })}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Remarks / Ledger Notes</label>
+                  <textarea
+                    placeholder="Enter optional comments or ledger notes for this renewal..."
+                    value={renewFD.remarks || ''}
+                    onChange={(e) => setRenewFD({ ...renewFD, remarks: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    rows={2}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Tenure</label>
-                    <select
-                      value={renewFD.tenure_months}
-                      onChange={(e) => setRenewFD({ ...renewFD, tenure_months: parseInt(e.target.value, 10) || 1, isManualRate: false })}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
-                    >
-                      {tenures.map(t => (
-                        <option key={t.id} value={t.months}>{t.tenure_label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1.5">Scheme</label>
-                    <select
-                      value={renewFD.interest_type}
-                      onChange={(e) => setRenewFD({ ...renewFD, interest_type: e.target.value as any, isManualRate: false })}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
-                    >
-                      <option value="Cumulative">Cumulative</option>
-                      <option value="Monthly">Monthly</option>
-                      <option value="Quarterly">Quarterly</option>
-                      <option value="Yearly">Yearly</option>
-                    </select>
-                  </div>
-                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div>
-                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-1">Interest Rate (%)</label>
-                  {isAdmin ? (
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      required
-                      value={renewFD.interest_rate}
-                      onChange={(e) => setRenewFD({ ...renewFD, interest_rate: parseFloat(e.target.value) || 0, isManualRate: true })}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
-                  ) : (
-                    <strong className="text-emerald-700 text-sm font-bold block">{renewFD.interest_rate.toFixed(2)}%</strong>
-                  )}
-                </div>
-                <div className="text-right">
-                  <span className="text-slate-400 text-xxs block mb-1">New Maturity Date</span>
-                  <strong className="text-slate-900 text-sm font-mono block font-bold">{renewFD.maturity_date}</strong>
-                </div>
-              </div>
-
-              <div className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow-lg">
-                <div>
-                  <span className="text-slate-400 text-xxs uppercase tracking-wider block font-bold">New Maturity Amount</span>
-                  <h4 className="text-lg font-mono font-bold text-blue-400 mt-0.5">₹{renewFD.maturity_amount.toLocaleString()}</h4>
-                </div>
-                <span className="text-xxs text-slate-400">Rollover count automatically increments.</span>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => setShowRenewForm(false)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-semibold cursor-pointer">Cancel</button>
-                <button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg flex items-center gap-1.5 cursor-pointer">
+              {/* FIXED FOOTER AT BOTTOM */}
+              <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3 shrink-0 rounded-b-2xl">
+                <button 
+                  type="button" 
+                  onClick={() => setShowRenewForm(false)} 
+                  className="bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 transition-colors cursor-pointer disabled:opacity-50"
+                >
                   {loading ? <RefreshCw className="h-4 w-4 animate-spin text-white" /> : <Save className="h-4 w-4 text-white" />}
-                  Confirm Rollover
+                  Confirm
                 </button>
               </div>
 
@@ -1583,116 +1744,140 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
 
       {/* --- FORM MODAL: FD CLOSING (MATURE OR PREMATURE) --- */}
       {showCloseForm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 transition-all duration-300">
-          <div className="bg-slate-50 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-100 flex flex-col">
-            <div className="bg-slate-900 text-white px-6 py-5 flex justify-between items-center border-b border-slate-800 rounded-t-2xl">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 sm:p-6 overflow-hidden">
+          <div className="bg-slate-50 rounded-2xl shadow-2xl w-[90vw] max-w-[900px] max-h-[90vh] border border-slate-100 flex flex-col my-auto overflow-hidden">
+            
+            {/* FIXED HEADER */}
+            <div className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center rounded-t-2xl shrink-0 border-b border-slate-800">
               <div>
-                <h3 className="text-lg font-bold flex items-center gap-2.5">
+                <h3 className="text-base font-bold flex items-center gap-2">
                   <AlertTriangle className="text-blue-500 h-5 w-5" />
                   {closeFD.isPremature ? 'Premature Liquidation Settlement' : 'Maturity Settlement'}
                 </h3>
-                <p className="text-xxs text-slate-400 mt-1">Process payouts and settle Fixed Deposit liabilities.</p>
+                <p className="text-xxs text-slate-400 mt-0.5">Process payouts and settle Fixed Deposit liabilities.</p>
               </div>
-              <button onClick={() => setShowCloseForm(false)} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"><X className="h-5 w-5" /></button>
+              <button 
+                type="button" 
+                onClick={() => setShowCloseForm(false)} 
+                className="text-slate-400 hover:text-white cursor-pointer p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                title="Close (Esc)"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleCloseSettlement} className="p-6 space-y-6 text-left text-xs">
+            {/* FORM WRAPPER FOR SCROLLABLE BODY AND FIXED FOOTER */}
+            <form onSubmit={handleCloseSettlement} className="flex flex-col flex-1 overflow-hidden">
               
-              <div className="bg-white rounded-xl border border-slate-200/60 p-4 grid grid-cols-2 gap-4 shadow-sm">
-                <div>
-                  <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">Account Number</span>
-                  <strong className="text-slate-900 font-mono text-sm font-extrabold">{closeFD.fdNumber}</strong>
-                </div>
-                <div className="text-right">
-                  <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">Placed Principal</span>
-                  <strong className="text-slate-900 font-mono text-sm font-extrabold">₹{closeFD.depositAmount.toLocaleString()}</strong>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200/60 p-5 shadow-sm space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* SCROLLABLE BODY */}
+              <div className="p-6 overflow-y-auto space-y-6 text-left text-xs flex-1">
+                
+                <div className="bg-white rounded-xl border border-slate-200/60 p-4 grid grid-cols-2 gap-4 shadow-sm">
                   <div>
-                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-2 tracking-wider">Settlement Date</label>
-                    <div className="relative rounded-lg shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <Calendar className="h-4 w-4" />
+                    <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">Account Number</span>
+                    <strong className="text-slate-900 font-mono text-sm font-extrabold">{closeFD.fdNumber}</strong>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">Placed Principal</span>
+                    <strong className="text-slate-900 font-mono text-sm font-extrabold">₹{closeFD.depositAmount.toLocaleString()}</strong>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200/60 p-5 shadow-sm space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xxs font-bold text-slate-600 uppercase mb-2 tracking-wider">Settlement Date</label>
+                      <div className="relative rounded-lg shadow-sm">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <Calendar className="h-4 w-4" />
+                        </div>
+                        <input
+                          type="date"
+                          required
+                          value={closeFD.close_date}
+                          onChange={(e) => setCloseFD({ ...closeFD, close_date: e.target.value })}
+                          className="block w-full pl-10 pr-3 py-2.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-mono transition-all duration-200 focus:outline-none"
+                        />
                       </div>
-                      <input
-                        type="date"
-                        required
-                        value={closeFD.close_date}
-                        onChange={(e) => setCloseFD({ ...closeFD, close_date: e.target.value })}
-                        className="block w-full pl-10 pr-3 py-2.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-mono transition-all duration-200 focus:outline-none"
-                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xxs font-bold text-slate-600 uppercase mb-2 tracking-wider">Payout Mode</label>
+                      <select
+                        value={closeFD.paymentMode}
+                        onChange={(e) => setCloseFD({ ...closeFD, paymentMode: e.target.value as any })}
+                        className="block w-full px-3 py-2.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-semibold transition-all duration-200 focus:outline-none cursor-pointer"
+                      >
+                        <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+                        <option value="UPI">UPI Instant Payout</option>
+                        <option value="Cheque">Bank Demand Draft/Cheque</option>
+                        <option value="Cash">Cash Vault Disbursal</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {closeFD.isPremature && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-950 flex flex-col gap-1 text-xxs shadow-sm">
+                      <strong className="text-red-900 block font-extrabold uppercase tracking-widest mb-1">⚠️ 2.00% Premature Penalty Enforced</strong>
+                      <p>• The depositor is terminating the contract prior to maturity date.</p>
+                      <p>• Standard 2.00% deduction is applied to the earned interest rate yield.</p>
+                      <p>• Actual duration completed: <strong className="font-mono text-red-950 text-xs">{closeFD.actualTenureMonths} Months</strong>.</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                      <span className="text-slate-500 text-[10px] block uppercase font-bold tracking-wider">Principal Payout</span>
+                      <strong className="text-slate-900 font-mono text-sm block mt-1 font-extrabold">₹{closeFD.depositAmount.toLocaleString()}</strong>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                      <span className="text-emerald-700 text-[10px] block uppercase font-bold tracking-wider">Interest Payout</span>
+                      <strong className="text-emerald-700 font-mono text-sm block mt-1 font-extrabold">₹{closeFD.interestPaid.toLocaleString()}</strong>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                      <span className="text-red-700 text-[10px] block uppercase font-bold tracking-wider">Penalty</span>
+                      <strong className="text-red-700 font-mono text-sm block mt-1 font-extrabold">{closeFD.isPremature ? '2.0%' : '0.00'}</strong>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-2 tracking-wider">Payout Mode</label>
-                    <select
-                      value={closeFD.paymentMode}
-                      onChange={(e) => setCloseFD({ ...closeFD, paymentMode: e.target.value as any })}
-                      className="block w-full px-3 py-2.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-semibold transition-all duration-200 focus:outline-none cursor-pointer"
-                    >
-                      <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
-                      <option value="UPI">UPI Instant Payout</option>
-                      <option value="Cheque">Bank Demand Draft/Cheque</option>
-                      <option value="Cash">Cash Vault Disbursal</option>
-                    </select>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-2 tracking-wider">Settlement Reason / Remarks</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Reason for early liquidation or final payout remarks..."
+                      value={closeFD.reason}
+                      onChange={(e) => setCloseFD({ ...closeFD, reason: e.target.value })}
+                      className="block w-full px-4 py-2.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm transition-all duration-200 focus:outline-none"
+                    />
                   </div>
                 </div>
 
-                {closeFD.isPremature && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-950 flex flex-col gap-1 text-xxs shadow-sm">
-                    <strong className="text-red-900 block font-extrabold uppercase tracking-widest mb-1">⚠️ 2.00% Premature Penalty Enforced</strong>
-                    <p>• The depositor is terminating the contract prior to maturity date.</p>
-                    <p>• Standard 2.00% deduction is applied to the earned interest rate yield.</p>
-                    <p>• Actual duration completed: <strong className="font-mono text-red-950 text-xs">{closeFD.actualTenureMonths} Months</strong>.</p>
+                <div className="bg-emerald-600 text-white rounded-xl p-5 flex justify-between items-center shadow-xl">
+                  <div>
+                    <span className="text-emerald-100 text-xxs uppercase tracking-wider block font-bold">Total Disbursal amount</span>
+                    <h4 className="text-2xl font-mono font-bold text-white mt-1">₹{closeFD.finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
                   </div>
-                )}
-
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="text-slate-500 text-[10px] block uppercase font-bold tracking-wider">Principal Payout</span>
-                    <strong className="text-slate-900 font-mono text-sm block mt-1 font-extrabold">₹{closeFD.depositAmount.toLocaleString()}</strong>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="text-emerald-700 text-[10px] block uppercase font-bold tracking-wider">Interest Payout</span>
-                    <strong className="text-emerald-700 font-mono text-sm block mt-1 font-extrabold">₹{closeFD.interestPaid.toLocaleString()}</strong>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="text-red-700 text-[10px] block uppercase font-bold tracking-wider">Penalty</span>
-                    <strong className="text-red-700 font-mono text-sm block mt-1 font-extrabold">{closeFD.isPremature ? '2.0%' : '0.00'}</strong>
-                  </div>
+                  <span className="text-xxs text-emerald-200 font-mono bg-emerald-700 border border-emerald-500 px-3 py-1 rounded-md uppercase font-bold tracking-widest">{closeFD.isPremature ? 'Premature Closed' : 'Normal Closed'}</span>
                 </div>
 
-                <div>
-                  <label className="block text-xxs font-bold text-slate-600 uppercase mb-2 tracking-wider">Settlement Reason / Remarks</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Reason for early liquidation or final payout remarks..."
-                    value={closeFD.reason}
-                    onChange={(e) => setCloseFD({ ...closeFD, reason: e.target.value })}
-                    className="block w-full px-4 py-2.5 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm transition-all duration-200 focus:outline-none"
-                  />
-                </div>
               </div>
 
-              <div className="bg-emerald-600 text-white rounded-xl p-5 flex justify-between items-center shadow-xl">
-                <div>
-                  <span className="text-emerald-100 text-xxs uppercase tracking-wider block font-bold">Total Disbursal amount</span>
-                  <h4 className="text-2xl font-mono font-bold text-white mt-1">₹{closeFD.finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
-                </div>
-                <span className="text-xxs text-emerald-200 font-mono bg-emerald-700 border border-emerald-500 px-3 py-1 rounded-md uppercase font-bold tracking-widest">{closeFD.isPremature ? 'Premature Closed' : 'Normal Closed'}</span>
-              </div>
-
-              <div className="flex justify-end gap-3.5 pt-6 border-t border-slate-150">
-                <button type="button" onClick={() => setShowCloseForm(false)} className="bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5">
+              {/* FIXED FOOTER AT BOTTOM */}
+              <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3 shrink-0 rounded-b-2xl">
+                <button 
+                  type="button" 
+                  onClick={() => setShowCloseForm(false)} 
+                  className="bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                >
                   <X className="h-4 w-4" />
                   Cancel
                 </button>
-                <button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-200 cursor-pointer">
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-colors cursor-pointer disabled:opacity-50"
+                >
                   {loading ? <RefreshCw className="h-4 w-4 animate-spin text-white" /> : <CheckCircle className="h-4 w-4 text-white" />}
                   Confirm Settlement
                 </button>
@@ -1848,26 +2033,77 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
               )}
 
               {/* Section 4: Renewal / Rollover Details */}
-              <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50">
-                <h4 className="text-xxs font-extrabold text-blue-900 uppercase tracking-widest mb-3 border-b border-slate-100 pb-1.5">Renewal / Rollover Details</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <span className="text-slate-400 text-xxs block uppercase">Parent FD Number</span>
-                    <strong className="text-slate-800 text-xs block mt-0.5 font-mono">{viewingFD.parent_fd_number || 'None'}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-xxs block uppercase">Old FD Number</span>
-                    <strong className="text-slate-800 text-xs block mt-0.5 font-mono">{viewingFD.old_fd_number || 'None'}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-xxs block uppercase">Renewal Count</span>
-                    <strong className="text-slate-800 text-xs block mt-0.5 font-mono">{viewingFD.renew_count}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-xxs block uppercase">Renewal Date</span>
-                    <strong className="text-slate-800 text-xs block mt-0.5 font-mono">{viewingFD.renew_date || 'N/A'}</strong>
+              <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 space-y-4">
+                <div>
+                  <h4 className="text-xxs font-extrabold text-blue-900 uppercase tracking-widest mb-3 border-b border-slate-100 pb-1.5">Renewal / Rollover Details</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <span className="text-slate-400 text-xxs block uppercase">Parent FD Number</span>
+                      <strong className="text-slate-800 text-xs block mt-0.5 font-mono">{viewingFD.parent_fd_number || 'None'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-xxs block uppercase">Old FD Number</span>
+                      <strong className="text-slate-800 text-xs block mt-0.5 font-mono">{viewingFD.old_fd_number || 'None'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-xxs block uppercase">Renewal Count</span>
+                      <strong className="text-slate-800 text-xs block mt-0.5 font-mono">{viewingFD.renew_count}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-xxs block uppercase">Renewal Date</span>
+                      <strong className="text-slate-800 text-xs block mt-0.5 font-mono">{viewingFD.renew_date || 'N/A'}</strong>
+                    </div>
                   </div>
                 </div>
+
+                {/* Section 4b: Renewal History Table */}
+                {(() => {
+                  const fdRenewalHistory = renewalLedgers.filter(
+                    l => l.old_fd_number === viewingFD.fd_number || 
+                         l.new_fd_number === viewingFD.fd_number || 
+                         (viewingFD.parent_fd_number && l.parent_fd_number === viewingFD.parent_fd_number) ||
+                         l.parent_fd_number === viewingFD.fd_number
+                  );
+
+                  if (fdRenewalHistory.length === 0) return null;
+
+                  return (
+                    <div className="border border-blue-100 rounded-xl p-3 bg-blue-50/30 space-y-2 mt-3">
+                      <h5 className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider flex items-center justify-between border-b border-blue-100/80 pb-1">
+                        <span>Renewal History</span>
+                        <span className="text-[9px] text-blue-700 font-mono font-bold">({fdRenewalHistory.length} Record{fdRenewalHistory.length > 1 ? 's' : ''})</span>
+                      </h5>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-xxs font-medium text-left text-slate-700 whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-blue-100/60 text-blue-900 font-bold uppercase tracking-wider">
+                              <th className="px-2 py-1.5">Renewal Date</th>
+                              <th className="px-2 py-1.5">Old FD Number</th>
+                              <th className="px-2 py-1.5">New FD Number</th>
+                              <th className="px-2 py-1.5 text-right">Interest Earned</th>
+                              <th className="px-2 py-1.5 text-right">Withdrawal Amount</th>
+                              <th className="px-2 py-1.5 text-right">Additional Deposit</th>
+                              <th className="px-2 py-1.5 text-right">Final Renewal Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-blue-100/40">
+                            {fdRenewalHistory.map(historyItem => (
+                              <tr key={historyItem.id} className="hover:bg-white transition-colors">
+                                <td className="px-2 py-1.5 font-mono">{historyItem.renewal_date}</td>
+                                <td className="px-2 py-1.5 font-mono font-bold text-slate-600">{historyItem.old_fd_number}</td>
+                                <td className="px-2 py-1.5 font-mono font-bold text-blue-700">{historyItem.new_fd_number}</td>
+                                <td className="px-2 py-1.5 text-right font-mono text-emerald-700">+₹{historyItem.interest_earned.toLocaleString()}</td>
+                                <td className="px-2 py-1.5 text-right font-mono text-red-600">-₹{historyItem.withdrawal_amount.toLocaleString()}</td>
+                                <td className="px-2 py-1.5 text-right font-mono text-blue-600">+₹{historyItem.additional_deposit.toLocaleString()}</td>
+                                <td className="px-2 py-1.5 text-right font-mono font-extrabold text-slate-900">₹{historyItem.final_renewal_amount.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Section 5: Payout Settlement Details */}
@@ -1951,7 +2187,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
 
             {/* Status Pills Tab Filter */}
             <div className="flex flex-wrap gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-200/60">
-              {(['All', 'Active', 'Renewed', 'Closed', 'Premature Closed', 'Matured'] as const).map((tab) => (
+              {(['All', 'Active', 'Matured', 'Closed', 'Renewed', 'Premature Closed', 'FD Renewal Ledger'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => { setStatusFilter(tab); setCurrentPage(1); }}
@@ -1961,148 +2197,291 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  {tab}
+                  {tab === 'FD Renewal Ledger' ? 'FD Renewal Ledger' : tab}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Table Container */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-xs divide-y divide-slate-100 text-left font-sans">
-              <thead>
-                <tr className="text-slate-500 font-bold uppercase tracking-wider bg-slate-50/50">
-                  <th className="px-3 py-2.5">FD Number</th>
-                  <th className="px-3 py-2.5">Holder name</th>
-                  <th className="px-3 py-2.5">Mobile</th>
-                  <th className="px-3 py-2.5 text-right">Principal</th>
-                  <th className="px-3 py-2.5 text-center">Rate</th>
-                  <th className="px-3 py-2.5 text-center">Tenure</th>
-                  <th className="px-3 py-2.5">Maturity Date</th>
-                  <th className="px-3 py-2.5 text-center">Status</th>
-                  <th className="px-3 py-2.5 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {paginatedFDs.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="text-center py-12 text-slate-400 font-medium">No matching Fixed Deposits recorded.</td>
-                  </tr>
-                ) : (
-                  paginatedFDs.map((f) => (
-                    <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-3 py-3 font-mono font-bold text-blue-700">{f.fd_number}</td>
-                      <td className="px-3 py-3">
-                        <span className="font-bold text-slate-900 block">{f.customer_name}</span>
-                        {f.old_fd_number && (
-                          <span className="text-[9px] text-blue-700 bg-blue-50 px-1 py-0.2 rounded font-mono inline-block">
-                            Rolled over from {f.old_fd_number}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 font-mono text-[11px]">{f.customer_mobile}</td>
-                      <td className="px-3 py-3 text-right font-mono font-bold text-slate-900">₹{f.deposit_amount.toLocaleString()}</td>
-                      <td className="px-3 py-3 text-center text-emerald-700 font-bold font-mono">{f.interest_rate.toFixed(2)}%</td>
-                      <td className="px-3 py-3 text-center text-slate-500">{f.tenure_months} Mo</td>
-                      <td className="px-3 py-3 font-mono text-[11px]">{f.maturity_date}</td>
-                      <td className="px-3 py-3 text-center">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                          f.status === 'Active' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                          f.status === 'Renewed' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
-                          f.status === 'Closed' ? 'bg-blue-50 text-blue-800 border border-blue-100' :
-                          'bg-red-50 text-red-800 border border-red-100'
-                        }`}>
-                          {f.status}
-                        </span>
-                        {f.status === 'Active' && getTodayStr() >= f.maturity_date && (
-                          <div className="text-[8px] text-amber-600 font-extrabold uppercase mt-1 leading-none tracking-tight">
-                            ★ Eligible for Renewal
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        <div className="flex justify-center items-center gap-1">
-                          {/* View Button (Always visible for both admin and customers) */}
-                          <button
-                            onClick={() => handleOpenView(f)}
-                            className="p-1 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded"
-                            title="View FD Details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
+          {/* Conditional Rendering: FD Renewal Ledger Tab vs Standard FDs Table */}
+          {statusFilter === 'FD Renewal Ledger' ? (
+            <div className="space-y-6">
+              {/* SEARCH PANEL AT TOP */}
+              <form onSubmit={handleLedgerSearchSubmit} className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <Search className="h-4 w-4 text-blue-600" />
+                    FD Renewal Ledger Search
+                  </h4>
+                  <span className="text-xxs text-slate-500 font-medium">Search historical rollover transactions</span>
+                </div>
 
-                          {/* Print Button (Only visible for admin, not customer) */}
-                          {isAdmin && (
-                            <button
-                              onClick={() => handleOpenPrintPreview(f)}
-                              className="p-1 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded"
-                              title="Print / PDF Receipt"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </button>
-                          )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1 tracking-wider">Customer Name</label>
+                    <input
+                      type="text"
+                      placeholder="Search Name..."
+                      value={ledgerSearchInput.customerName}
+                      onChange={(e) => setLedgerSearchInput({ ...ledgerSearchInput, customerName: e.target.value })}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1 tracking-wider">Mobile Number</label>
+                    <input
+                      type="text"
+                      placeholder="Search Mobile..."
+                      value={ledgerSearchInput.mobileNumber}
+                      onChange={(e) => setLedgerSearchInput({ ...ledgerSearchInput, mobileNumber: e.target.value })}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1 tracking-wider">Old FD Number</label>
+                    <input
+                      type="text"
+                      placeholder="Search Old FD..."
+                      value={ledgerSearchInput.oldFDNumber}
+                      onChange={(e) => setLedgerSearchInput({ ...ledgerSearchInput, oldFDNumber: e.target.value })}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xxs font-bold text-slate-600 uppercase mb-1 tracking-wider">New FD Number</label>
+                    <input
+                      type="text"
+                      placeholder="Search New FD..."
+                      value={ledgerSearchInput.newFDNumber}
+                      onChange={(e) => setLedgerSearchInput({ ...ledgerSearchInput, newFDNumber: e.target.value })}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                    />
+                  </div>
+                </div>
 
-                          {/* Admin Only Actions */}
-                          {isAdmin && f.status === 'Active' && (
-                            <>
-                              {getTodayStr() >= f.maturity_date ? (
-                                /* After Maturity Date */
-                                <>
-                                  <button
-                                    onClick={() => handleOpenRenew(f)}
-                                    className="p-1 text-blue-600 hover:bg-blue-50 rounded animate-pulse"
-                                    title="Rollover / Renew FD"
-                                  >
-                                    <RefreshCw className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenClose(f, false)}
-                                    className="p-1 text-emerald-600 hover:bg-emerald-50 rounded font-bold text-[10px]"
-                                    title="Normal Maturity Settlement"
-                                  >
-                                    <CheckCircle className="h-4 w-4" />
-                                  </button>
-                                </>
-                              ) : (
-                                /* Before Maturity Date */
-                                <>
-                                  <button
-                                    onClick={() => handleOpenEdit(f)}
-                                    className="p-1 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded"
-                                    title="Edit FD Details"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenClose(f, true)}
-                                    className="p-1 text-red-500 hover:bg-red-50 rounded"
-                                    title="Premature Liquidation Close"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                </>
-                              )}
-                            </>
-                          )}
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-200/50">
+                  <button
+                    type="button"
+                    onClick={handleLedgerSearchReset}
+                    className="px-4 py-1.5 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+                    Reset
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Search className="h-3.5 w-3.5 text-white" />
+                    Search
+                  </button>
+                </div>
+              </form>
 
-                          {/* Delete Record (Admin Only) */}
-                          {isAdmin && (
-                            <button
-                              onClick={() => handleDeleteFD(f.id)}
-                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-slate-50 rounded"
-                              title="Delete Record"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+              {/* RENEWAL LEDGER TABLE */}
+              <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                <table className="min-w-full text-xs divide-y divide-slate-100 text-left font-sans whitespace-nowrap">
+                  <thead>
+                    <tr className="text-slate-500 font-bold uppercase tracking-wider bg-slate-50/50">
+                      <th className="px-3 py-2.5">Renewal Date</th>
+                      <th className="px-3 py-2.5">Customer Name</th>
+                      <th className="px-3 py-2.5">Mobile</th>
+                      <th className="px-3 py-2.5">Old FD No</th>
+                      <th className="px-3 py-2.5">New FD No</th>
+                      <th className="px-3 py-2.5 text-right">Principal</th>
+                      <th className="px-3 py-2.5 text-right">Interest Earned</th>
+                      <th className="px-3 py-2.5 text-right">Maturity Amount</th>
+                      <th className="px-3 py-2.5 text-right">Additional Deposit</th>
+                      <th className="px-3 py-2.5 text-right">Withdrawal Amount</th>
+                      <th className="px-3 py-2.5 text-right">Renewal Amount</th>
+                      <th className="px-3 py-2.5 text-center">Rate</th>
+                      <th className="px-3 py-2.5 text-center">Tenure</th>
+                      <th className="px-3 py-2.5">New Maturity Date</th>
+                      <th className="px-3 py-2.5">Created By</th>
+                      <th className="px-3 py-2.5 text-center">Actions</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                    {paginatedLedgers.length === 0 ? (
+                      <tr>
+                        <td colSpan={16} className="text-center py-12 text-slate-400 font-medium">No matching FD renewal ledger records found.</td>
+                      </tr>
+                    ) : (
+                      paginatedLedgers.map((l) => (
+                        <tr key={l.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-3 py-3 font-mono">{l.renewal_date}</td>
+                          <td className="px-3 py-3 font-bold text-slate-900">{l.customer_name}</td>
+                          <td className="px-3 py-3 font-mono text-[11px]">{l.mobile_number}</td>
+                          <td className="px-3 py-3 font-mono font-bold text-slate-500">{l.old_fd_number}</td>
+                          <td className="px-3 py-3 font-mono font-bold text-blue-700">{l.new_fd_number}</td>
+                          <td className="px-3 py-3 text-right font-mono">₹{l.original_deposit_amount.toLocaleString()}</td>
+                          <td className="px-3 py-3 text-right font-mono text-emerald-700">+₹{l.interest_earned.toLocaleString()}</td>
+                          <td className="px-3 py-3 text-right font-mono font-bold">₹{l.total_maturity_amount.toLocaleString()}</td>
+                          <td className="px-3 py-3 text-right font-mono text-blue-600">+₹{l.additional_deposit.toLocaleString()}</td>
+                          <td className="px-3 py-3 text-right font-mono text-red-600">-₹{l.withdrawal_amount.toLocaleString()}</td>
+                          <td className="px-3 py-3 text-right font-mono text-emerald-700 font-extrabold">₹{l.final_renewal_amount.toLocaleString()}</td>
+                          <td className="px-3 py-3 text-center text-emerald-700 font-bold font-mono">{l.interest_rate.toFixed(2)}%</td>
+                          <td className="px-3 py-3 text-center text-slate-500">{l.tenure} Mo</td>
+                          <td className="px-3 py-3 font-mono text-[11px]">{l.new_maturity_date}</td>
+                          <td className="px-3 py-3 text-slate-600">{l.created_by}</td>
+                          <td className="px-3 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedLedger(l);
+                                setShowLedgerModal(true);
+                              }}
+                              className="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs"
+                              title="View Complete Renewal Details"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            /* Table Container for Standard FDs */
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs divide-y divide-slate-100 text-left font-sans">
+                <thead>
+                  <tr className="text-slate-500 font-bold uppercase tracking-wider bg-slate-50/50">
+                    <th className="px-3 py-2.5">FD Number</th>
+                    <th className="px-3 py-2.5">Holder name</th>
+                    <th className="px-3 py-2.5">Mobile</th>
+                    <th className="px-3 py-2.5 text-right">Principal</th>
+                    <th className="px-3 py-2.5 text-center">Rate</th>
+                    <th className="px-3 py-2.5 text-center">Tenure</th>
+                    <th className="px-3 py-2.5">Maturity Date</th>
+                    <th className="px-3 py-2.5 text-center">Status</th>
+                    <th className="px-3 py-2.5 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {paginatedFDs.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="text-center py-12 text-slate-400 font-medium">No matching Fixed Deposits recorded.</td>
+                    </tr>
+                  ) : (
+                    paginatedFDs.map((f) => (
+                      <tr key={f.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-3 py-3 font-mono font-bold text-blue-700">{f.fd_number}</td>
+                        <td className="px-3 py-3">
+                          <span className="font-bold text-slate-900 block">{f.customer_name}</span>
+                          {f.old_fd_number && (
+                            <span className="text-[9px] text-blue-700 bg-blue-50 px-1 py-0.2 rounded font-mono inline-block">
+                              Rolled over from {f.old_fd_number}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 font-mono text-[11px]">{f.customer_mobile}</td>
+                        <td className="px-3 py-3 text-right font-mono font-bold text-slate-900">₹{f.deposit_amount.toLocaleString()}</td>
+                        <td className="px-3 py-3 text-center text-emerald-700 font-bold font-mono">{f.interest_rate.toFixed(2)}%</td>
+                        <td className="px-3 py-3 text-center text-slate-500">{f.tenure_months} Mo</td>
+                        <td className="px-3 py-3 font-mono text-[11px]">{f.maturity_date}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                            f.status === 'Active' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                            f.status === 'Renewed' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                            f.status === 'Closed' ? 'bg-blue-50 text-blue-800 border border-blue-100' :
+                            'bg-red-50 text-red-800 border border-red-100'
+                          }`}>
+                            {f.status}
+                          </span>
+                          {f.status === 'Active' && getTodayStr() >= f.maturity_date && (
+                            <div className="text-[8px] text-amber-600 font-extrabold uppercase mt-1 leading-none tracking-tight">
+                              ★ Eligible for Renewal
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <div className="flex justify-center items-center gap-1">
+                            {/* View Button (Always visible for both admin and customers) */}
+                            <button
+                              onClick={() => handleOpenView(f)}
+                              className="p-1 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded"
+                              title="View FD Details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+
+                            {/* Print Button (Only visible for admin, not customer) */}
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleOpenPrintPreview(f)}
+                                className="p-1 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded"
+                                title="Print / PDF Receipt"
+                              >
+                                <Printer className="h-4 w-4" />
+                              </button>
+                            )}
+
+                            {/* Admin Only Actions */}
+                            {isAdmin && f.status === 'Active' && (
+                              <>
+                                {getTodayStr() >= f.maturity_date ? (
+                                  /* After Maturity Date */
+                                  <>
+                                    <button
+                                      onClick={() => handleOpenRenew(f)}
+                                      className="p-1 text-blue-600 hover:bg-blue-50 rounded animate-pulse"
+                                      title="Rollover / Renew FD"
+                                    >
+                                      <RefreshCw className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenClose(f, false)}
+                                      className="p-1 text-emerald-600 hover:bg-emerald-50 rounded font-bold text-[10px]"
+                                      title="Normal Maturity Settlement"
+                                    >
+                                      <CheckCircle className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  /* Before Maturity Date */
+                                  <>
+                                    <button
+                                      onClick={() => handleOpenEdit(f)}
+                                      className="p-1 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded"
+                                      title="Edit FD Details"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenClose(f, true)}
+                                      className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                      title="Premature Liquidation Close"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                )}
+                              </>
+                            )}
+
+                            {/* Delete Record (Admin Only) */}
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleDeleteFD(f.id)}
+                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-slate-50 rounded"
+                                title="Delete Record"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Pagination */}
@@ -2129,6 +2508,165 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
         )}
 
       </div>
+
+      {/* --- MODAL FOR RENEWAL LEDGER DETAILS (BANKING STYLE DIALOG) --- */}
+      {showLedgerModal && selectedLedger && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex justify-center items-center p-4 sm:p-6 overflow-hidden">
+          <div className="bg-slate-50 rounded-2xl shadow-2xl w-[90vw] max-w-[850px] max-h-[90vh] border border-slate-100 flex flex-col my-auto overflow-hidden">
+            
+            {/* FIXED HEADER */}
+            <div className="bg-slate-900 text-white px-6 py-5 flex justify-between items-center border-b border-slate-800 rounded-t-2xl shrink-0">
+              <div>
+                <h3 className="text-lg font-bold flex items-center gap-2.5">
+                  <FileText className="text-blue-500 h-5 w-5" />
+                  Renewal Ledger Audit Trail
+                </h3>
+                <p className="text-xxs text-slate-400 mt-1">Permanent archival record of rollover transaction details.</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowLedgerModal(false)} 
+                className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"
+                title="Close (Esc)"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* SCROLLABLE BODY */}
+            <div className="p-6 overflow-y-auto space-y-6 text-left text-xs flex-1">
+              
+              {/* Account Overview Panel */}
+              <div className="bg-white rounded-xl border border-slate-200/60 p-4 grid grid-cols-2 sm:grid-cols-3 gap-4 shadow-sm">
+                <div>
+                  <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">Old FD Reference</span>
+                  <strong className="text-slate-900 font-mono text-sm font-extrabold">{selectedLedger.old_fd_number}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">New FD Reference</span>
+                  <strong className="text-blue-700 font-mono text-sm font-extrabold">{selectedLedger.new_fd_number}</strong>
+                </div>
+                <div className="col-span-2 sm:col-span-1 text-right sm:text-left">
+                  <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">Root Parent FD</span>
+                  <strong className="text-slate-500 font-mono text-sm font-bold">{selectedLedger.parent_fd_number}</strong>
+                </div>
+              </div>
+
+              {/* Depositor Panel */}
+              <div className="bg-white rounded-xl border border-slate-200/60 p-4 grid grid-cols-2 gap-4 shadow-sm">
+                <div>
+                  <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">Customer Name</span>
+                  <strong className="text-slate-900 text-xs block mt-0.5">{selectedLedger.customer_name}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-xxs block uppercase tracking-wider font-bold">Mobile Number</span>
+                  <strong className="text-slate-900 font-mono text-xs block mt-0.5">{selectedLedger.mobile_number}</strong>
+                </div>
+              </div>
+
+              {/* Rollover Balance Settlement Calculation Card */}
+              <div className="bg-white rounded-xl border border-slate-200/60 p-5 shadow-sm space-y-4">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  Rollover Balance & Settlement Calculation
+                </h4>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-medium">
+                  <div>
+                    <span className="text-slate-400 text-xxs block">Original Principal Term</span>
+                    <strong className="text-slate-800 font-mono">₹{selectedLedger.original_deposit_amount.toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-xxs block">Previous Term Yield</span>
+                    <strong className="text-slate-800 font-mono text-emerald-700">+ ₹{selectedLedger.interest_earned.toLocaleString()}</strong>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="text-slate-400 text-xxs block">Total Maturity Amount</span>
+                    <strong className="text-slate-900 font-mono font-extrabold">₹{selectedLedger.total_maturity_amount.toLocaleString()}</strong>
+                  </div>
+
+                  <div className="col-span-2 sm:col-span-3 border-t border-slate-100 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div>
+                      <span className="text-slate-400 text-xxs block">Additional Deposit Added</span>
+                      <strong className="text-slate-800 font-mono text-blue-600">+ ₹{selectedLedger.additional_deposit.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-xxs block">Partial Withdrawal Paid</span>
+                      <strong className="text-slate-800 font-mono text-red-600">- ₹{selectedLedger.withdrawal_amount.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-xxs block">Final Re-Invested Amount</span>
+                      <strong className="text-emerald-700 font-mono text-base font-extrabold">₹{selectedLedger.final_renewal_amount.toLocaleString()}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-lg p-2.5 text-[10px] text-slate-500 border border-slate-100/80 flex items-center justify-between font-mono">
+                  <span>Balance Check Formula:</span>
+                  <span className="font-bold">₹{selectedLedger.total_maturity_amount.toLocaleString()} + ₹{selectedLedger.additional_deposit.toLocaleString()} - ₹{selectedLedger.withdrawal_amount.toLocaleString()} = ₹{selectedLedger.final_renewal_amount.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* New Term Placement parameters */}
+              <div className="bg-white rounded-xl border border-slate-200/60 p-5 shadow-sm space-y-4">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  New Deposit Contract Details
+                </h4>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <span className="text-slate-400 text-xxs block">Renewal Date</span>
+                    <strong className="text-slate-800 font-mono">{selectedLedger.renewal_date}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-xxs block">Interest Rate</span>
+                    <strong className="text-emerald-700 font-mono font-bold">{selectedLedger.interest_rate.toFixed(2)}% P.A.</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-xxs block">New Tenure</span>
+                    <strong className="text-slate-800 font-mono">{selectedLedger.tenure} Months</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-xxs block">New Maturity Date</span>
+                    <strong className="text-blue-700 font-mono font-bold">{selectedLedger.new_maturity_date}</strong>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                  <div>
+                    <span className="text-slate-400 text-xxs block">Renewal Option</span>
+                    <strong className="text-slate-800 font-medium">{selectedLedger.renewal_option}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-xxs block">Logged By</span>
+                    <strong className="text-slate-800 font-medium">{selectedLedger.created_by}</strong>
+                  </div>
+                </div>
+
+                {selectedLedger.remarks && (
+                  <div className="border-t border-slate-100 pt-3">
+                    <span className="text-slate-400 text-xxs block mb-1">Remarks / Ledger Notes</span>
+                    <p className="bg-slate-50 rounded-lg p-2.5 text-slate-700 text-xxs border border-slate-100">
+                      {selectedLedger.remarks}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* FIXED FOOTER */}
+            <div className="bg-white px-6 py-4 border-t border-slate-200 flex justify-end shrink-0 rounded-b-2xl">
+              <button
+                type="button"
+                onClick={() => setShowLedgerModal(false)}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
+              >
+                Close Audit View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

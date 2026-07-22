@@ -121,3 +121,31 @@ export interface ScanHistoryItem {
   scanned_by: string;
   timestamp: string;
 }
+
+export interface FDRenewalLedger {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  mobile_number: string;
+  old_fd_number: string;
+  new_fd_number: string;
+  parent_fd_number: string;
+  renewal_date: string;
+  original_deposit_amount: number;
+  interest_earned: number;
+  total_maturity_amount: number;
+  additional_deposit: number;
+  withdrawal_amount: number;
+  final_renewal_amount: number;
+  interest_rate: number;
+  tenure: number;
+  old_maturity_date: string;
+  new_deposit_date: string;
+  new_maturity_date: string;
+  renew_count: number;
+  renewal_option: string;
+  remarks: string;
+  created_by: string;
+  created_at: string;
+}
+

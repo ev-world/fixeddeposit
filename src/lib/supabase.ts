@@ -7,7 +7,8 @@ import {
   InterestMaster, 
   TenureMaster, 
   ActivityLog,
-  ScanHistoryItem
+  ScanHistoryItem,
+  FDRenewalLedger
 } from '../types';
 
 // Read Vite Environment Variables
@@ -39,7 +40,8 @@ const LOCAL_STORAGE_KEYS = {
   INTERESTS: 'supermoney_interests',
   TENURES: 'supermoney_tenures',
   ACTIVITY_LOGS: 'supermoney_activity_logs',
-  SCAN_HISTORY: 'supermoney_scan_history'
+  SCAN_HISTORY: 'supermoney_scan_history',
+  RENEWAL_LEDGER: 'supermoney_renewal_ledger'
 };
 
 // Seed Defaults
@@ -108,6 +110,9 @@ const initLocalStorage = () => {
   }
   if (!localStorage.getItem(LOCAL_STORAGE_KEYS.SCAN_HISTORY)) {
     localStorage.setItem(LOCAL_STORAGE_KEYS.SCAN_HISTORY, JSON.stringify([]));
+  }
+  if (!localStorage.getItem(LOCAL_STORAGE_KEYS.RENEWAL_LEDGER)) {
+    localStorage.setItem(LOCAL_STORAGE_KEYS.RENEWAL_LEDGER, JSON.stringify([]));
   }
 };
 
@@ -516,6 +521,10 @@ export const db = {
       interest_type: 'Monthly' | 'Quarterly' | 'Yearly' | 'Cumulative';
       maturity_date: string;
       maturity_amount: number;
+      additional_deposit?: number;
+      withdrawal_amount?: number;
+      renewal_option?: string;
+      remarks?: string;
     },
     createdBy: string = 'Admin'
   ): Promise<FDMaster> {
@@ -574,6 +583,46 @@ export const db = {
       'Renew FD', 
       `Successfully renewed FD ${oldFD.fd_number} into new FD ${savedNewFD.fd_number} (Renew count: ${newFD.renew_count}).`
     );
+
+    // Create automatic entry in fd_renewal_ledger
+    try {
+      const interestEarned = Math.max(0, oldFD.maturity_amount - oldFD.deposit_amount);
+      const totalMaturityAmount = oldFD.maturity_amount;
+      const finalRenewalAmount = newFDParams.deposit_amount;
+      
+      // Compute additional deposit and withdrawal amount matching user formula: Final Renewal Amount = Maturity Amount + Additional Deposit - Withdrawal Amount
+      const additionalDeposit = newFDParams.additional_deposit ?? Math.max(0, finalRenewalAmount - totalMaturityAmount);
+      const withdrawalAmount = newFDParams.withdrawal_amount ?? Math.max(0, totalMaturityAmount - finalRenewalAmount);
+
+      const ledgerRecord: Omit<FDRenewalLedger, 'id' | 'created_at'> = {
+        customer_id: oldFD.customer_id,
+        customer_name: oldFD.customer_name,
+        mobile_number: oldFD.customer_mobile,
+        old_fd_number: oldFD.fd_number,
+        new_fd_number: savedNewFD.fd_number,
+        parent_fd_number: oldFD.parent_fd_number || oldFD.fd_number,
+        renewal_date: newFDParams.deposit_date,
+        original_deposit_amount: oldFD.deposit_amount,
+        interest_earned: interestEarned,
+        total_maturity_amount: totalMaturityAmount,
+        additional_deposit: additionalDeposit,
+        withdrawal_amount: withdrawalAmount,
+        final_renewal_amount: finalRenewalAmount,
+        interest_rate: newFDParams.interest_rate,
+        tenure: newFDParams.tenure_months,
+        old_maturity_date: oldFD.maturity_date,
+        new_deposit_date: newFDParams.deposit_date,
+        new_maturity_date: newFDParams.maturity_date,
+        renew_count: oldFD.renew_count + 1,
+        renewal_option: newFDParams.renewal_option || 'Cumulative',
+        remarks: newFDParams.remarks || '',
+        created_by: createdBy
+      };
+
+      await this.createRenewalLedger(ledgerRecord);
+    } catch (ledgerErr) {
+      console.error('Error inserting into FD renewal ledger:', ledgerErr);
+    }
 
     return savedNewFD;
   },
@@ -695,5 +744,76 @@ export const db = {
     list.unshift(item);
     setLocalItem(LOCAL_STORAGE_KEYS.SCAN_HISTORY, list.slice(0, 100)); // Keep last 100
     await this.logActivity(scanned_by, 'QR Verification Scan', `Verified FD QR code for receipt ${fd_number} (${customer_name}).`);
+  },
+
+  // --- FD RENEWAL LEDGER ---
+  async getRenewalLedgers(customerId?: string): Promise<FDRenewalLedger[]> {
+    if (supabaseClient) {
+      let query = supabaseClient.from('fd_renewal_ledger').select('*');
+      if (customerId) {
+        query = query.eq('customer_id', customerId);
+      }
+      const { data, error } = await query.order('renewal_date', { ascending: false });
+      if (!error && data) return data as FDRenewalLedger[];
+    }
+    const all = getLocalItem<FDRenewalLedger[]>(LOCAL_STORAGE_KEYS.RENEWAL_LEDGER);
+    const sorted = all.sort((a, b) => b.renewal_date.localeCompare(a.renewal_date) || b.created_at.localeCompare(a.created_at));
+    if (customerId) {
+      return sorted.filter(t => t.customer_id === customerId);
+    }
+    return sorted;
+  },
+
+  async createRenewalLedger(record: Omit<FDRenewalLedger, 'id' | 'created_at'>): Promise<FDRenewalLedger> {
+    const newRecord: FDRenewalLedger = {
+      ...record,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString()
+    };
+
+    if (supabaseClient) {
+      const payload = {
+        customer_id: record.customer_id,
+        customer_name: record.customer_name,
+        mobile_number: record.mobile_number,
+        old_fd_number: record.old_fd_number,
+        new_fd_number: record.new_fd_number,
+        parent_fd_number: record.parent_fd_number,
+        renewal_date: record.renewal_date,
+        original_deposit_amount: record.original_deposit_amount,
+        interest_earned: record.interest_earned,
+        total_maturity_amount: record.total_maturity_amount,
+        additional_deposit: record.additional_deposit,
+        withdrawal_amount: record.withdrawal_amount,
+        final_renewal_amount: record.final_renewal_amount,
+        interest_rate: record.interest_rate,
+        tenure: record.tenure,
+        old_maturity_date: record.old_maturity_date,
+        new_deposit_date: record.new_deposit_date,
+        new_maturity_date: record.new_maturity_date,
+        renew_count: record.renew_count,
+        renewal_option: record.renewal_option,
+        remarks: record.remarks,
+        created_by: record.created_by
+      };
+
+      const { data, error } = await supabaseClient
+        .from('fd_renewal_ledger')
+        .insert([payload])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error inserting into fd_renewal_ledger:', error);
+      } else if (data) {
+        return data as FDRenewalLedger;
+      }
+    }
+    
+    const key = LOCAL_STORAGE_KEYS.RENEWAL_LEDGER;
+    const list = getLocalItem<FDRenewalLedger[]>(key);
+    list.unshift(newRecord);
+    setLocalItem(key, list);
+    return newRecord;
   }
 };
