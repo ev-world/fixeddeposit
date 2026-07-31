@@ -136,16 +136,16 @@ Maturity Amount : ${formatCurrencyForQR(fdItem.maturity_amount)}
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       
       {/* 1. Left Side: QR Code Generator (Select and view FD QR) */}
-      <div className="lg:col-span-4 bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col justify-between">
+      <div className="lg:col-span-4 bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-6 flex flex-col justify-between">
         <div>
-          <h3 className="text-md font-bold text-slate-900 flex items-center gap-2 mb-1">
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-1 font-sans">
             <QrCode className="h-5 w-5 text-amber-500" />
             Certificate QR Generator
           </h3>
           <p className="text-xs text-slate-500 mb-6">Select a Fixed Deposit from the master registry to render its anti-tamper verification QR Code.</p>
 
           <div className="mb-6">
-            <label className="block text-xxs font-bold text-slate-700 uppercase mb-2">Select Fixed Deposit</label>
+            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-2 tracking-wider">Select Fixed Deposit</label>
             <select
               value={selectedFD ? selectedFD.fd_number : ''}
               onChange={(e) => {
@@ -153,7 +153,7 @@ Maturity Amount : ${formatCurrencyForQR(fdItem.maturity_amount)}
                 const found = fds.find(f => f.fd_number === fdNum);
                 if (found) setSelectedFD(found);
               }}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono font-bold"
+              className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all cursor-pointer"
             >
               {fds.length === 0 ? (
                 <option>No deposits registered</option>
@@ -169,40 +169,40 @@ Maturity Amount : ${formatCurrencyForQR(fdItem.maturity_amount)}
         </div>
 
         {selectedFD ? (
-          <div className="flex flex-col items-center justify-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+          <div className="flex flex-col items-center justify-center py-6 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
             <img
               src={getQRImageUrl(selectedFD.fd_number)}
               alt="Verification QR"
-              className="h-44 w-44 bg-white border border-slate-200 p-1.5 rounded-lg shadow-md mb-4"
+              className="h-44 w-44 bg-white border border-slate-200/80 p-2 rounded-2xl shadow-sm mb-4"
               referrerPolicy="no-referrer"
             />
             <div className="text-center px-4">
               <strong className="text-sm font-mono text-slate-900 block font-bold">{selectedFD.fd_number}</strong>
               <span className="text-xs text-slate-500 block mt-0.5">{selectedFD.customer_name}</span>
-              <span className="text-xxs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-bold uppercase tracking-wider inline-block mt-2">
+              <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider inline-block mt-2">
                 Deposit Value: ₹{selectedFD.deposit_amount.toLocaleString()}
               </span>
             </div>
             
             <button
               onClick={() => handleSimulateScan(selectedFD.fd_number)}
-              className="mt-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 cursor-pointer"
+              className="mt-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
             >
-              <Smartphone className="h-3.5 w-3.5" />
+              <Smartphone className="h-4 w-4 text-amber-400" />
               Simulate Scan
             </button>
           </div>
         ) : (
-          <div className="py-12 text-center text-slate-400 text-xs">
+          <div className="py-12 text-center text-slate-400 text-xs font-medium">
             No Fixed Deposit records registered to generate QR.
           </div>
         )}
       </div>
 
       {/* 2. Middle: QR Verification Portal (Verify a QR code) */}
-      <div className="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col justify-between">
+      <div className="lg:col-span-5 bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-6 flex flex-col justify-between">
         <div>
-          <h3 className="text-md font-bold text-slate-900 flex items-center gap-2 mb-1">
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-1 font-sans">
             <ScanLine className="h-5 w-5 text-amber-500 animate-pulse" />
             Audit Scanner Simulator
           </h3>
@@ -215,12 +215,12 @@ Maturity Amount : ${formatCurrencyForQR(fdItem.maturity_amount)}
               placeholder="Enter Certificate Number (e.g. FD202600001)"
               value={verifyInput}
               onChange={(e) => setVerifyInput(e.target.value)}
-              className="flex-1 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono font-semibold"
+              className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
             />
             <button
               type="submit"
               disabled={isVerifying}
-              className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-5 rounded-lg font-bold text-sm flex items-center gap-2 cursor-pointer"
+              className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 px-5 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
             >
               {isVerifying ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />

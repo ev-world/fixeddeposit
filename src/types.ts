@@ -1,8 +1,15 @@
 export interface DBUser {
   id: string;
+  auth_user_id?: string;
   username: string;
-  role: 'admin' | 'customer';
+  email: string;
+  full_name: string;
+  mobile?: string;
+  role: 'super_admin' | 'admin' | 'operator';
+  is_active: boolean;
+  last_login?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface DBCustomer {

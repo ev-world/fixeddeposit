@@ -177,8 +177,8 @@ export default function Reports({ onOpenFD }: ReportsProps) {
       <div className="flex flex-col xl:flex-row gap-6">
         
         {/* Left Side: Report Filters Index */}
-        <div className="xl:w-64 bg-white rounded-xl shadow-sm border border-slate-100 p-4 h-fit flex-shrink-0 space-y-1 no-print">
-          <h4 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-2.5 mb-3">Audits & Ledgers</h4>
+        <div className="xl:w-64 bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-5 h-fit flex-shrink-0 space-y-1.5 no-print">
+          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-2.5 mb-3">Audits & Ledgers</h4>
           
           {[
             { id: 'today', label: "Today's Placements" },
@@ -198,14 +198,14 @@ export default function Reports({ onOpenFD }: ReportsProps) {
                 setActiveReport(item.id as ReportType);
                 setSearchTerm('');
               }}
-              className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
                 activeReport === item.id 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'text-slate-600 hover:bg-slate-50'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10 font-bold' 
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <span>{item.label}</span>
-              <ArrowRight className="h-3 w-3 opacity-60" />
+              <ArrowRight className="h-3.5 w-3.5 opacity-60" />
             </button>
           ))}
         </div>
@@ -215,56 +215,62 @@ export default function Reports({ onOpenFD }: ReportsProps) {
           
           {/* Summary Dashboard Widgets */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print">
-            <div className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
               <div>
-                <span className="text-slate-400 text-xxs font-semibold uppercase tracking-wider">Deposits count</span>
+                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Deposits Count</span>
                 <h3 className="text-2xl font-mono font-bold text-slate-900 mt-1">{aggregatedCount}</h3>
               </div>
-              <FileText className="h-9 w-9 text-blue-500/10" />
+              <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <FileText className="h-5 w-5" />
+              </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
               <div>
-                <span className="text-slate-400 text-xxs font-semibold uppercase tracking-wider">Total volume placement</span>
+                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Total Placement Volume</span>
                 <h3 className="text-2xl font-mono font-bold text-slate-900 mt-1">₹{aggregatedTotal.toLocaleString('en-IN')}</h3>
               </div>
-              <Landmark className="h-9 w-9 text-emerald-500/10" />
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <Landmark className="h-5 w-5" />
+              </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
               <div>
-                <span className="text-slate-400 text-xxs font-semibold uppercase tracking-wider">Projected Interest Expense</span>
+                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Projected Interest Expense</span>
                 <h3 className="text-2xl font-mono font-bold text-slate-900 mt-1">₹{aggregatedInterest.toLocaleString('en-IN')}</h3>
               </div>
-              <Percent className="h-9 w-9 text-rose-500/10" />
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Percent className="h-5 w-5" />
+              </div>
             </div>
           </div>
 
           {/* Central Report Stage */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6" id="printable-report-area">
+          <div className="bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-6 sm:p-7" id="printable-report-area">
             {/* Header controls */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4 mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5 mb-6">
               <div>
-                <span className="text-xxs font-bold text-blue-600 uppercase tracking-widest block no-print">Super Money Fixed Deposit</span>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block no-print mb-0.5">Super Money Fixed Deposit</span>
                 <h2 className="text-lg font-bold text-slate-900 font-sans">{getReportTitle()}</h2>
-                <p className="text-xxs text-slate-400 mt-0.5 print-only">Generated on: {new Date().toLocaleString()}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 print-only">Generated on: {new Date().toLocaleString()}</p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto no-print">
+              <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto no-print">
                 <div className="relative flex-1 md:w-60">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                   <input
                     type="text"
                     placeholder="Search table records..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-slate-50/50 focus:bg-white border border-slate-200 rounded-xl pl-9.5 pr-4 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
                   />
                 </div>
 
                 <button
                   onClick={handleExportExcel}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 cursor-pointer"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
                   title="Export to Excel Spreadsheet (.csv)"
                 >
                   <FileSpreadsheet className="h-4 w-4" />
@@ -273,11 +279,11 @@ export default function Reports({ onOpenFD }: ReportsProps) {
 
                 <button
                   onClick={handlePrintReport}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 cursor-pointer"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
                   title="Print Report"
                 >
                   <Printer className="h-4 w-4" />
-                  Print/PDF
+                  Print / PDF
                 </button>
               </div>
             </div>

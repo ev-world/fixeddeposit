@@ -262,73 +262,73 @@ export default function SettingsPanel({ onSettingsUpdated }: SettingsPanelProps)
       )}
 
       {/* Settings Navigation Tabs */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-wrap md:divide-x divide-slate-100">
+      <div className="bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-2 overflow-hidden flex flex-wrap gap-1">
         <button
           onClick={() => setActiveTab('profile')}
-          className={`flex-1 min-w-[120px] px-5 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-            activeTab === 'profile' ? 'bg-blue-600/10 text-blue-950 font-semibold border-b-2 md:border-b-0 border-blue-600' : 'text-slate-600 hover:bg-slate-50'
+          className={`flex-1 min-w-[140px] px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'profile' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
           }`}
         >
-          <Building2 className="h-4 w-4 text-blue-600" />
+          <Building2 className="h-4 w-4" />
           Company Profile
         </button>
 
         <button
           onClick={() => setActiveTab('interest')}
-          className={`flex-1 min-w-[120px] px-5 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-            activeTab === 'interest' ? 'bg-blue-600/10 text-blue-950 font-semibold border-b-2 md:border-b-0 border-blue-600' : 'text-slate-600 hover:bg-slate-50'
+          className={`flex-1 min-w-[140px] px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'interest' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
           }`}
         >
-          <Percent className="h-4 w-4 text-blue-600" />
+          <Percent className="h-4 w-4" />
           Interest Master
         </button>
 
         <button
           onClick={() => setActiveTab('tenure')}
-          className={`flex-1 min-w-[120px] px-5 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-            activeTab === 'tenure' ? 'bg-blue-600/10 text-blue-950 font-semibold border-b-2 md:border-b-0 border-blue-600' : 'text-slate-600 hover:bg-slate-50'
+          className={`flex-1 min-w-[140px] px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'tenure' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
           }`}
         >
-          <CalendarClock className="h-4 w-4 text-blue-600" />
+          <CalendarClock className="h-4 w-4" />
           Tenure Master
         </button>
 
         <button
           onClick={() => setActiveTab('database')}
-          className={`flex-1 min-w-[120px] px-5 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-            activeTab === 'database' ? 'bg-blue-600/10 text-blue-950 font-semibold border-b-2 md:border-b-0 border-blue-600' : 'text-slate-600 hover:bg-slate-50'
+          className={`flex-1 min-w-[140px] px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'database' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
           }`}
         >
-          <Database className="h-4 w-4 text-blue-600" />
+          <Database className="h-4 w-4" />
           Database Integration
         </button>
 
         <button
           onClick={() => setActiveTab('logs')}
-          className={`flex-1 min-w-[120px] px-5 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-            activeTab === 'logs' ? 'bg-blue-600/10 text-blue-950 font-semibold border-b-2 md:border-b-0 border-blue-600' : 'text-slate-600 hover:bg-slate-50'
+          className={`flex-1 min-w-[140px] px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'logs' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
           }`}
         >
-          <ShieldCheck className="h-4 w-4 text-blue-600" />
+          <ShieldCheck className="h-4 w-4" />
           Security Audit
         </button>
       </div>
 
       {/* Tab Panels */}
       {loading && !settings ? (
-        <div className="bg-white p-12 text-center rounded-xl border border-slate-100 flex flex-col items-center justify-center gap-3">
+        <div className="bg-white p-12 text-center rounded-3xl border border-slate-200/80 flex flex-col items-center justify-center gap-3">
           <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
-          <p className="text-slate-500">Loading configurations...</p>
+          <p className="text-slate-500 text-xs font-semibold">Loading configurations...</p>
         </div>
       ) : (
         <>
           {/* 1. Company Profile Panel */}
           {activeTab === 'profile' && settings && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+            <div className="bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-6 sm:p-7">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-5 mb-6">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Company & Receipt Master Profile</h3>
-                  <p className="text-xs text-slate-500">These details are reflected on A4 Half-Page Fixed Deposit Receipts and verification portals.</p>
+                  <h3 className="text-base font-bold text-slate-900 font-sans">Company & Receipt Master Profile</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">These details are reflected on A4 Half-Page Fixed Deposit Receipts and verification portals.</p>
                 </div>
                 <Settings2 className="h-6 w-6 text-slate-400" />
               </div>
@@ -336,38 +336,38 @@ export default function SettingsPanel({ onSettingsUpdated }: SettingsPanelProps)
               <form onSubmit={handleSaveProfile} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-2">Company Registered Name</label>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-2 tracking-wider">Company Registered Name</label>
                     <input
                       type="text"
                       required
                       value={settings.company_name}
                       onChange={(e) => setSettings({ ...settings, company_name: e.target.value })}
-                      className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-slate-50/50 focus:bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase mb-2">FD Series Prefix</label>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-2 tracking-wider">FD Series Prefix</label>
                       <input
                         type="text"
                         required
                         maxLength={5}
                         value={settings.fd_prefix}
                         onChange={(e) => setSettings({ ...settings, fd_prefix: e.target.value.toUpperCase() })}
-                        className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono font-bold"
+                        className="w-full bg-slate-50/50 focus:bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
                         placeholder="FD"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase mb-2">Next FD Sequence</label>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-2 tracking-wider">Next FD Sequence</label>
                       <input
                         type="number"
                         required
                         min={1}
                         value={settings.next_fd_seq}
                         onChange={(e) => setSettings({ ...settings, next_fd_seq: parseInt(e.target.value, 10) || 1 })}
-                        className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                        className="w-full bg-slate-50/50 focus:bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
                       />
                     </div>
                   </div>

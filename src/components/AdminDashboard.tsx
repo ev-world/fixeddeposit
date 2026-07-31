@@ -253,44 +253,51 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
       <div className="space-y-6">
       
       {/* 1. Header Grid Welcome */}
-      <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg">
-        <div>
-          <span className="text-[10px] text-blue-400 font-mono tracking-widest uppercase font-bold">Super Money Deposit System</span>
-          <h2 className="text-xl md:text-2xl font-bold font-sans mt-0.5 text-white">Admin Central Command Deck</h2>
-          <p className="text-xs text-slate-300 mt-1 max-w-xl">
+      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-800 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent pointer-events-none" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-blue-400 font-mono tracking-widest uppercase font-bold bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
+              Super Money Central Node
+            </span>
+          </div>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold font-sans mt-2 text-white tracking-tight">
+            Admin Central Command Deck
+          </h2>
+          <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
             Real-time visual monitoring of Fixed Deposit portfolios, liability accounts, and depositor file databases.
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-3 relative z-10">
           <button
             onClick={onQuickNewFD}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-xs flex items-center gap-1.5 shadow transition-all cursor-pointer"
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-900/30 transition-all cursor-pointer active:scale-[0.98]"
           >
             <PlusCircle className="h-4 w-4" />
             New Placement
           </button>
           <button
             onClick={onQuickNewCustomer}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2.5 rounded-lg font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            className="bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-4 w-4 text-blue-400" />
             New Customer
           </button>
         </div>
       </div>
 
       {/* 1.5 Global FD Search Module */}
-      <div id="global-fd-search-module" className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
+      <div id="global-fd-search-module" className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
         <div>
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider font-sans flex items-center gap-2">
             <Search className="h-4.5 w-4.5 text-blue-600" />
             Global FD Search Panel
           </h3>
-          <p className="text-xxs text-slate-400 mt-0.5">Quickly query across the full depository network by certificate, holder name, contact info, or identity cards.</p>
+          <p className="text-xs text-slate-500 mt-1">Quickly query across the full depository network by certificate, holder name, contact info, or identity cards.</p>
         </div>
 
-        <form onSubmit={handleSearchSubmit} className="flex gap-2">
+        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             <input
@@ -298,13 +305,13 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Search by FD No, Customer Name, Mobile, Aadhaar or PAN"
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800 transition-all outline-none"
+              className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800 transition-all outline-none"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer p-1"
               >
                 Clear
               </button>
@@ -312,7 +319,7 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
           </div>
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-blue-600/10 active:scale-[0.98]"
           >
             Search
           </button>
@@ -322,44 +329,44 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
         {hasSearched && (
           <div className="space-y-6 animate-fade-in">
             {searchResults.length === 0 ? (
-              <div className="py-12 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+              <div className="py-12 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                 <p className="text-slate-500 text-sm font-semibold">No Fixed Deposit records found.</p>
               </div>
             ) : (
               <>
                 {/* SUMMARY PANEL (Only active FDs of the searched customer(s)) */}
-                <div className="bg-blue-50/30 border border-blue-100 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-xs">
+                <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
                     <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Total Active FDs</span>
                     <strong className="text-xl font-mono text-slate-900 block mt-1">
                       {searchSummary.activeCount}
                     </strong>
                   </div>
-                  <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-xs">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
                     <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Total Active Deposit Amount</span>
                     <strong className="text-xl font-mono text-slate-900 block mt-1">
                       ₹{searchSummary.totalDeposit.toLocaleString('en-IN')}
                     </strong>
                   </div>
-                  <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-xs">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
                     <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Total Active Interest Amount</span>
-                    <strong className="text-xl font-mono text-emerald-800 block mt-1">
+                    <strong className="text-xl font-mono text-emerald-600 block mt-1">
                       ₹{searchSummary.totalInterest.toLocaleString('en-IN')}
                     </strong>
                   </div>
-                  <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-xs">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
                     <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Total Active Maturity Value</span>
-                    <strong className="text-xl font-mono text-blue-700 block mt-1">
+                    <strong className="text-xl font-mono text-blue-600 block mt-1">
                       ₹{searchSummary.totalMaturity.toLocaleString('en-IN')}
                     </strong>
                   </div>
                 </div>
 
                 {/* RESULTS TABLE */}
-                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+                <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white shadow-2xs">
                   <div className="max-h-96 overflow-y-auto overflow-x-auto relative scrollbar-thin">
                     <table className="w-full text-xs text-left border-collapse min-w-[1000px]">
-                      <thead className="sticky top-0 bg-slate-900 text-white font-semibold text-xxs uppercase tracking-wider z-10">
+                      <thead className="sticky top-0 bg-slate-900 text-white font-semibold text-[10px] uppercase tracking-wider z-10">
                         <tr>
                           {[
                             { key: 'fd_number', label: 'FD Number', sortable: true },
@@ -378,7 +385,7 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
                             <th 
                               key={col.key} 
                               onClick={() => col.sortable && handleSort(col.key)}
-                              className={`px-4 py-3 border-b border-slate-800 bg-slate-900 select-none ${col.sortable ? 'cursor-pointer hover:bg-slate-800' : ''}`}
+                              className={`px-4 py-3.5 border-b border-slate-800 bg-slate-900 select-none ${col.sortable ? 'cursor-pointer hover:bg-slate-800' : ''}`}
                             >
                               <div className="flex items-center gap-1.5">
                                 {col.label}
@@ -394,23 +401,23 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
                         {paginatedResults.map((f, idx) => {
                           const displayStatus = getFDDisplayStatus(f);
                           return (
-                            <tr key={f.id} className={idx % 2 === 0 ? 'bg-white hover:bg-slate-50/50' : 'bg-slate-50/30 hover:bg-slate-50/50'}>
-                              <td className="px-4 py-3.5 font-mono font-bold text-blue-700">{f.fd_number}</td>
+                            <tr key={f.id} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50/30 transition-colors' : 'bg-slate-50/40 hover:bg-blue-50/30 transition-colors'}>
+                              <td className="px-4 py-3.5 font-mono font-bold text-blue-600">{f.fd_number}</td>
                               <td className="px-4 py-3.5 font-bold text-slate-800">{f.customer_name}</td>
                               <td className="px-4 py-3.5 font-mono text-slate-600">{f.customer_mobile}</td>
                               <td className="px-4 py-3.5 font-mono font-semibold text-slate-900">₹{f.deposit_amount.toLocaleString('en-IN')}</td>
-                              <td className="px-4 py-3.5 font-mono text-emerald-700 font-bold">{f.interest_rate.toFixed(2)}%</td>
+                              <td className="px-4 py-3.5 font-mono text-emerald-600 font-bold">{f.interest_rate.toFixed(2)}%</td>
                               <td className="px-4 py-3.5 text-slate-600">{f.tenure_months} Mo</td>
                               <td className="px-4 py-3.5 font-mono text-slate-600">{f.deposit_date}</td>
                               <td className="px-4 py-3.5 font-mono text-slate-600">{f.maturity_date}</td>
-                              <td className="px-4 py-3.5 font-mono font-semibold text-blue-700">₹{f.maturity_amount.toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3.5 font-mono font-semibold text-blue-600">₹{f.maturity_amount.toLocaleString('en-IN')}</td>
                               <td className="px-4 py-3.5">
-                                <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                                  displayStatus === 'Active' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                                  displayStatus === 'Renewed' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
-                                  displayStatus === 'Matured' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
-                                  displayStatus === 'Premature Closed' ? 'bg-red-50 text-red-800 border border-red-200' :
-                                  'bg-slate-100 text-slate-800 border border-slate-200'
+                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                  displayStatus === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                  displayStatus === 'Renewed' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                  displayStatus === 'Matured' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                  displayStatus === 'Premature Closed' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                                  'bg-slate-100 text-slate-700 border border-slate-200'
                                 }`}>
                                   {displayStatus}
                                 </span>
@@ -418,7 +425,7 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
                               <td className="px-4 py-3.5 text-center">
                                 <button
                                   onClick={() => handleViewFD(f)}
-                                  className="p-1 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded cursor-pointer transition-colors"
+                                  className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
                                   title="View Details"
                                 >
                                   <Eye className="h-4 w-4" />
@@ -427,7 +434,7 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
                               <td className="px-4 py-3.5 text-center">
                                 <button
                                   onClick={() => handlePrintFD(f)}
-                                  className="p-1 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded cursor-pointer transition-colors"
+                                  className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
                                   title="Print Receipt"
                                 >
                                   <Printer className="h-4 w-4" />
@@ -442,22 +449,22 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
 
                   {/* PAGINATION PANEL */}
                   {totalPages > 1 && (
-                    <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex items-center justify-between">
-                      <div className="text-xxs text-slate-500">
-                        Showing <strong className="font-semibold text-slate-700">{startIndex + 1}</strong> to <strong className="font-semibold text-slate-700">{Math.min(startIndex + pageSize, sortedResults.length)}</strong> of <strong className="font-semibold text-slate-700">{sortedResults.length}</strong> records
+                    <div className="bg-slate-50/80 border-t border-slate-200/80 px-4 py-3 flex items-center justify-between">
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        Showing <strong className="font-bold text-slate-700">{startIndex + 1}</strong> to <strong className="font-bold text-slate-700">{Math.min(startIndex + pageSize, sortedResults.length)}</strong> of <strong className="font-bold text-slate-700">{sortedResults.length}</strong> records
                       </div>
                       <div className="flex gap-1.5">
                         <button
                           disabled={currentPage === 1}
                           onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                          className="px-2.5 py-1.5 border border-slate-200 rounded text-xxs font-semibold bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                          className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
                         >
                           Previous
                         </button>
                         <button
                           disabled={currentPage === totalPages}
                           onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                          className="px-2.5 py-1.5 border border-slate-200 rounded text-xxs font-semibold bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                          className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
                         >
                           Next
                         </button>
@@ -474,49 +481,49 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
       {/* 2. Critical Stats Indicators Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
+        <div className="bg-white p-5.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-start justify-between">
           <div className="space-y-1.5">
-            <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Today's New FDs</span>
-            <strong className="text-2xl font-mono text-slate-900 block">{stats.todayFDsCount} Placed</strong>
-            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
+            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Today's New FDs</span>
+            <strong className="text-2xl font-mono text-slate-900 block tracking-tight">{stats.todayFDsCount} Placed</strong>
+            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               Volume: ₹{stats.todayFDsVolume.toLocaleString()}
             </span>
           </div>
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100/50">
             <Receipt className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
+        <div className="bg-white p-5.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-start justify-between">
           <div className="space-y-1.5">
-            <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Maturing Today</span>
-            <strong className="text-2xl font-mono text-slate-900 block">{stats.maturityTodayCount} Due</strong>
-            <span className="text-[10px] text-slate-500 block">Needs normal close settlement</span>
+            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Maturing Today</span>
+            <strong className="text-2xl font-mono text-slate-900 block tracking-tight">{stats.maturityTodayCount} Due</strong>
+            <span className="text-[10px] text-slate-500 font-medium block">Needs normal close settlement</span>
           </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100/50">
             <CalendarRange className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
+        <div className="bg-white p-5.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-start justify-between">
           <div className="space-y-1.5">
-            <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Renewal Dues (7D)</span>
-            <strong className="text-2xl font-mono text-slate-900 block">{stats.renewDueCount} Due</strong>
-            <span className="text-[10px] text-amber-700 font-semibold block">Awaiting rollover action</span>
+            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Renewal Dues (7D)</span>
+            <strong className="text-2xl font-mono text-slate-900 block tracking-tight">{stats.renewDueCount} Due</strong>
+            <span className="text-[10px] text-amber-600 font-bold block">Awaiting rollover action</span>
           </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100/50">
             <Hourglass className="h-5 w-5 animate-pulse" />
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
+        <div className="bg-white p-5.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-start justify-between">
           <div className="space-y-1.5">
-            <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Premature Closed Today</span>
-            <strong className="text-2xl font-mono text-slate-900 block">{stats.prematureClosedTodayCount} Settled</strong>
-            <span className="text-[10px] text-slate-500 block">Interest liquidated with penalty</span>
+            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Premature Closed Today</span>
+            <strong className="text-2xl font-mono text-slate-900 block tracking-tight">{stats.prematureClosedTodayCount} Settled</strong>
+            <span className="text-[10px] text-slate-500 font-medium block">Interest liquidated with penalty</span>
           </div>
-          <div className="p-3 bg-slate-100 text-slate-600 rounded-xl">
+          <div className="p-3 bg-slate-100 text-slate-600 rounded-xl border border-slate-200/50">
             <AlertOctagon className="h-5 w-5" />
           </div>
         </div>
@@ -527,30 +534,30 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Side: Financial Liabilities & Volumes */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-6 sm:p-7 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider mb-6 font-sans">Consolidated Deposit Portfolio Ledger</h3>
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6 font-sans">Consolidated Deposit Portfolio Ledger</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
-              <div className="bg-slate-50 rounded-xl border border-slate-100 p-5 flex items-center gap-4">
-                <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-5 flex items-center gap-4">
+                <div className="p-3.5 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100/50">
                   <PiggyBank className="h-7 w-7" />
                 </div>
                 <div>
-                  <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Total Active Deposits (Principal)</span>
-                  <h4 className="text-xl font-mono font-bold text-slate-950 mt-1">₹{stats.totalActiveDepositAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
-                  <p className="text-[10px] text-slate-400 mt-1">Outstanding active deposits liability.</p>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Total Active Principal</span>
+                  <h4 className="text-xl font-mono font-bold text-slate-900 mt-0.5">₹{stats.totalActiveDepositAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Outstanding active deposits liability.</p>
                 </div>
               </div>
 
-              <div className="bg-slate-50 rounded-xl border border-slate-100 p-5 flex items-center gap-4">
-                <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-5 flex items-center gap-4">
+                <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100/50">
                   <Scale className="h-7 w-7" />
                 </div>
                 <div>
-                  <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Projected Interest Liabilities</span>
-                  <h4 className="text-xl font-mono font-bold text-emerald-800 mt-1">₹{stats.totalInterestLiability.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
-                  <p className="text-[10px] text-slate-400 mt-1">Projected payout obligation at maturity.</p>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Interest Liabilities</span>
+                  <h4 className="text-xl font-mono font-bold text-emerald-600 mt-0.5">₹{stats.totalInterestLiability.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Projected payout obligation at maturity.</p>
                 </div>
               </div>
 
@@ -558,8 +565,8 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
           </div>
 
           {/* Quick graphical proportion meter */}
-          <div className="mt-8 pt-6 border-t border-slate-200">
-            <div className="flex justify-between items-center mb-2 text-xs">
+          <div className="mt-8 pt-6 border-t border-slate-200/80">
+            <div className="flex justify-between items-center mb-2.5 text-xs">
               <span className="text-slate-500 font-medium">Deposit status distribution</span>
               <span className="font-mono font-bold text-slate-900">{stats.activeFDsCount} Active / {fds.length} Total</span>
             </div>
@@ -581,22 +588,22 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
               />
             </div>
             <div className="flex flex-wrap gap-x-4 mt-3 text-[10px] text-slate-500 font-semibold">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" /> Active</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500 inline-block" /> Renewed</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-300 inline-block" /> Closed/Settled</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" /> Active</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500 inline-block" /> Renewed</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-slate-300 inline-block" /> Closed/Settled</span>
             </div>
           </div>
         </div>
 
         {/* Right Side: Total customers and action directory */}
-        <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+        <div className="lg:col-span-1 bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-6 sm:p-7 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider mb-5 font-sans">Depositor database metrics</h3>
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-5 font-sans">Depositor database metrics</h3>
             
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className="bg-slate-100 p-2.5 rounded-lg text-slate-700">
-                  <Users className="h-5 w-5" />
+                <div className="bg-slate-100 p-3 rounded-2xl text-slate-700">
+                  <Users className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Total Registered Holders</span>
@@ -605,37 +612,37 @@ export default function AdminDashboard({ onNavigate, onQuickNewFD, onQuickNewCus
               </div>
             </div>
 
-            <p className="text-xxs text-slate-500 leading-relaxed">
-              Customers can instantly access their portfolio read-only dashboard using their mobile number and dynamic name-based secure passkey.
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Customers can instantly access their portfolio read-only dashboard using their mobile number and dynamic name-based passkey.
             </p>
           </div>
 
-          <div className="space-y-2 mt-6">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Security Command Shortcut</h4>
+          <div className="space-y-3 mt-6">
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Command Center Shortcuts</h4>
             
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={() => onNavigate('qr')}
-                className="p-2.5 bg-slate-50 border border-slate-200 hover:border-blue-300 rounded-lg text-left transition-all cursor-pointer"
+                className="p-3 bg-slate-50/80 border border-slate-200/80 hover:border-blue-300 rounded-xl text-left transition-all cursor-pointer hover:bg-blue-50/30"
               >
                 <QrCode className="h-4 w-4 text-blue-600 mb-1" />
-                <span className="text-xxs font-bold text-slate-800 block">QR Validator</span>
+                <span className="text-xs font-bold text-slate-800 block">QR Validator</span>
               </button>
 
               <button
                 onClick={() => onNavigate('reports')}
-                className="p-2.5 bg-slate-50 border border-slate-200 hover:border-blue-300 rounded-lg text-left transition-all cursor-pointer"
+                className="p-3 bg-slate-50/80 border border-slate-200/80 hover:border-blue-300 rounded-xl text-left transition-all cursor-pointer hover:bg-blue-50/30"
               >
                 <FileBarChart className="h-4 w-4 text-blue-600 mb-1" />
-                <span className="text-xxs font-bold text-slate-800 block">Report Center</span>
+                <span className="text-xs font-bold text-slate-800 block">Report Center</span>
               </button>
 
               <button
                 onClick={() => onNavigate('settings')}
-                className="p-2.5 bg-slate-50 border border-slate-200 hover:border-blue-300 rounded-lg text-left transition-all cursor-pointer col-span-2"
+                className="p-3 bg-slate-50/80 border border-slate-200/80 hover:border-blue-300 rounded-xl text-left transition-all cursor-pointer col-span-2 hover:bg-blue-50/30"
               >
                 <Settings2 className="h-4 w-4 text-blue-600 mb-1 inline" />
-                <span className="text-xxs font-bold text-slate-800 inline-block ml-1">System Master Configurations</span>
+                <span className="text-xs font-bold text-slate-800 inline-block ml-1.5">System Master Configurations</span>
               </button>
             </div>
           </div>

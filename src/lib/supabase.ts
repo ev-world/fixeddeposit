@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
+  DBUser,
   DBCustomer, 
   FDMaster, 
   FDTransaction, 
@@ -19,7 +20,7 @@ export const isUsingRealSupabase = (): boolean => {
   return !!(supabaseUrl && supabaseUrl !== 'MY_SUPABASE_URL' && supabaseAnonKey && supabaseAnonKey !== 'MY_SUPABASE_ANON_KEY');
 };
 
-let supabaseClient: SupabaseClient | null = null;
+export let supabaseClient: SupabaseClient | null = null;
 
 if (isUsingRealSupabase()) {
   try {
@@ -33,6 +34,7 @@ if (isUsingRealSupabase()) {
 // LOCAL STORAGE BACKEND FALLBACK
 // -------------------------------------------------------------
 const LOCAL_STORAGE_KEYS = {
+  USERS: 'supermoney_users',
   CUSTOMERS: 'supermoney_customers',
   FDS: 'supermoney_fds',
   TRANSACTIONS: 'supermoney_transactions',
@@ -114,6 +116,20 @@ const initLocalStorage = () => {
   if (!localStorage.getItem(LOCAL_STORAGE_KEYS.RENEWAL_LEDGER)) {
     localStorage.setItem(LOCAL_STORAGE_KEYS.RENEWAL_LEDGER, JSON.stringify([]));
   }
+  if (!localStorage.getItem(LOCAL_STORAGE_KEYS.USERS)) {
+    localStorage.setItem(LOCAL_STORAGE_KEYS.USERS, JSON.stringify([
+      {
+        id: '00000000-0000-0000-0000-000000000002',
+        username: 'admin',
+        email: 'admin@supermoneyfd.com',
+        full_name: 'System Administrator',
+        mobile: '+91 98765 43210',
+        role: 'super_admin',
+        is_active: true,
+        created_at: new Date().toISOString()
+      }
+    ]));
+  }
 };
 
 initLocalStorage();
@@ -132,6 +148,62 @@ function setLocalItem<T>(key: string, data: T): void {
 // -------------------------------------------------------------
 
 export const db = {
+  // --- USERS / ADMIN AUTHENTICATION ---
+  async getUserByUsername(username: string): Promise<DBUser | null> {
+    const trimmed = username.trim();
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from('users')
+        .select('*')
+        .ilike('username', trimmed)
+        .limit(1);
+      if (!error && data && data.length > 0) {
+        return data[0] as DBUser;
+      }
+      // Fallback: try exact match
+      const { data: exactData } = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('username', trimmed)
+        .limit(1);
+      if (exactData && exactData.length > 0) {
+        return exactData[0] as DBUser;
+      }
+      return null;
+    }
+    const list = getLocalItem<DBUser[]>(LOCAL_STORAGE_KEYS.USERS);
+    return list.find(u => u.username.toLowerCase() === trimmed.toLowerCase()) || null;
+  },
+
+  async updateUserLastLogin(userId: string, authUserId?: string): Promise<void> {
+    const nowIso = new Date().toISOString();
+    if (supabaseClient) {
+      const payload: any = { last_login: nowIso, updated_at: nowIso };
+      if (authUserId) {
+        payload.auth_user_id = authUserId;
+      }
+      await supabaseClient
+        .from('users')
+        .update(payload)
+        .eq('id', userId);
+    } else {
+      const list = getLocalItem<DBUser[]>(LOCAL_STORAGE_KEYS.USERS);
+      const updated = list.map(u => u.id === userId ? { ...u, last_login: nowIso, auth_user_id: authUserId || u.auth_user_id } : u);
+      setLocalItem(LOCAL_STORAGE_KEYS.USERS, updated);
+    }
+  },
+
+  async getUsers(): Promise<DBUser[]> {
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data) return data as DBUser[];
+    }
+    return getLocalItem<DBUser[]>(LOCAL_STORAGE_KEYS.USERS);
+  },
+
   // --- ACTIVITY LOGS ---
   async getLogs(): Promise<ActivityLog[]> {
     if (supabaseClient) {

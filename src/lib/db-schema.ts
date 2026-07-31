@@ -185,14 +185,143 @@ INSERT INTO interest_master (tenure_months_min, tenure_months_max, interest_rate
 (37, 120, 8.25, 'Senior Citizen')
 ON CONFLICT DO NOTHING;
 
--- 9. Disable Row Level Security (RLS) for all tables
--- This ensures the client application can read and write data seamlessly.
-ALTER TABLE customers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE fd_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE fd_transactions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE interest_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE tenure_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
-ALTER TABLE activity_logs DISABLE ROW LEVEL SECURITY;
-ALTER TABLE fd_renewal_ledger DISABLE ROW LEVEL SECURITY;
+-- 10. Create USERS Table
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_user_id UUID,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  full_name VARCHAR(150) NOT NULL,
+  mobile VARCHAR(20),
+  role VARCHAR(30) DEFAULT 'admin' NOT NULL CHECK (role IN ('super_admin', 'admin', 'operator')),
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  last_login TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Seed Default Admin User if empty
+INSERT INTO users (id, username, email, full_name, mobile, role, is_active)
+VALUES (
+  '00000000-0000-0000-0000-000000000002',
+  'admin',
+  'admin@supermoneyfd.com',
+  'System Administrator',
+  '+91 98765 43210',
+  'super_admin',
+  true
+)
+ON CONFLICT (username) DO NOTHING;
+
+-- 11. Enable Row Level Security (RLS) for all tables
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fd_master ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fd_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE interest_master ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenure_master ENABLE ROW LEVEL SECURITY;
+ALTER TABLE company_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fd_renewal_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if present to prevent duplicate policy errors
+DROP POLICY IF EXISTS "Allow read access to customers" ON customers;
+DROP POLICY IF EXISTS "Allow insert access to customers" ON customers;
+DROP POLICY IF EXISTS "Allow update access to customers" ON customers;
+DROP POLICY IF EXISTS "Allow delete access to customers" ON customers;
+
+DROP POLICY IF EXISTS "Allow read access to fd_master" ON fd_master;
+DROP POLICY IF EXISTS "Allow insert access to fd_master" ON fd_master;
+DROP POLICY IF EXISTS "Allow update access to fd_master" ON fd_master;
+DROP POLICY IF EXISTS "Allow delete access to fd_master" ON fd_master;
+
+DROP POLICY IF EXISTS "Allow read access to fd_transactions" ON fd_transactions;
+DROP POLICY IF EXISTS "Allow insert access to fd_transactions" ON fd_transactions;
+DROP POLICY IF EXISTS "Allow update access to fd_transactions" ON fd_transactions;
+DROP POLICY IF EXISTS "Allow delete access to fd_transactions" ON fd_transactions;
+
+DROP POLICY IF EXISTS "Allow read access to interest_master" ON interest_master;
+DROP POLICY IF EXISTS "Allow insert access to interest_master" ON interest_master;
+DROP POLICY IF EXISTS "Allow update access to interest_master" ON interest_master;
+DROP POLICY IF EXISTS "Allow delete access to interest_master" ON interest_master;
+
+DROP POLICY IF EXISTS "Allow read access to tenure_master" ON tenure_master;
+DROP POLICY IF EXISTS "Allow insert access to tenure_master" ON tenure_master;
+DROP POLICY IF EXISTS "Allow update access to tenure_master" ON tenure_master;
+DROP POLICY IF EXISTS "Allow delete access to tenure_master" ON tenure_master;
+
+DROP POLICY IF EXISTS "Allow read access to company_settings" ON company_settings;
+DROP POLICY IF EXISTS "Allow insert access to company_settings" ON company_settings;
+DROP POLICY IF EXISTS "Allow update access to company_settings" ON company_settings;
+DROP POLICY IF EXISTS "Allow delete access to company_settings" ON company_settings;
+
+DROP POLICY IF EXISTS "Allow read access to activity_logs" ON activity_logs;
+DROP POLICY IF EXISTS "Allow insert access to activity_logs" ON activity_logs;
+DROP POLICY IF EXISTS "Allow update access to activity_logs" ON activity_logs;
+DROP POLICY IF EXISTS "Allow delete access to activity_logs" ON activity_logs;
+
+DROP POLICY IF EXISTS "Allow read access to fd_renewal_ledger" ON fd_renewal_ledger;
+DROP POLICY IF EXISTS "Allow insert access to fd_renewal_ledger" ON fd_renewal_ledger;
+DROP POLICY IF EXISTS "Allow update access to fd_renewal_ledger" ON fd_renewal_ledger;
+DROP POLICY IF EXISTS "Allow delete access to fd_renewal_ledger" ON fd_renewal_ledger;
+
+DROP POLICY IF EXISTS "Allow read access to users" ON users;
+DROP POLICY IF EXISTS "Allow insert access to users" ON users;
+DROP POLICY IF EXISTS "Allow update access to users" ON users;
+DROP POLICY IF EXISTS "Allow delete access to users" ON users;
+
+-- Create RLS Policies ensuring compatibility with Supabase Auth and client queries
+CREATE POLICY "Allow read access to customers" ON customers FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to customers" ON customers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to customers" ON customers FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to customers" ON customers FOR DELETE USING (true);
+
+CREATE POLICY "Allow read access to fd_master" ON fd_master FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to fd_master" ON fd_master FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to fd_master" ON fd_master FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to fd_master" ON fd_master FOR DELETE USING (true);
+
+CREATE POLICY "Allow read access to fd_transactions" ON fd_transactions FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to fd_transactions" ON fd_transactions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to fd_transactions" ON fd_transactions FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to fd_transactions" ON fd_transactions FOR DELETE USING (true);
+
+CREATE POLICY "Allow read access to interest_master" ON interest_master FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to interest_master" ON interest_master FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to interest_master" ON interest_master FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to interest_master" ON interest_master FOR DELETE USING (true);
+
+CREATE POLICY "Allow read access to tenure_master" ON tenure_master FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to tenure_master" ON tenure_master FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to tenure_master" ON tenure_master FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to tenure_master" ON tenure_master FOR DELETE USING (true);
+
+CREATE POLICY "Allow read access to company_settings" ON company_settings FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to company_settings" ON company_settings FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to company_settings" ON company_settings FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to company_settings" ON company_settings FOR DELETE USING (true);
+
+CREATE POLICY "Allow read access to activity_logs" ON activity_logs FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to activity_logs" ON activity_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to activity_logs" ON activity_logs FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to activity_logs" ON activity_logs FOR DELETE USING (true);
+
+CREATE POLICY "Allow read access to fd_renewal_ledger" ON fd_renewal_ledger FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to fd_renewal_ledger" ON fd_renewal_ledger FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to fd_renewal_ledger" ON fd_renewal_ledger FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to fd_renewal_ledger" ON fd_renewal_ledger FOR DELETE USING (true);
+
+CREATE POLICY "Allow read access to users" ON users FOR SELECT USING (true);
+CREATE POLICY "Allow insert access to users" ON users FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access to users" ON users FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access to users" ON users FOR DELETE USING (true);
+
+-- 12. Create RPC function for username lookup returning ONLY email
+CREATE OR REPLACE FUNCTION get_user_email_by_username(username_input TEXT)
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT email FROM users WHERE username = username_input AND is_active = true LIMIT 1;
+$$;
 `;

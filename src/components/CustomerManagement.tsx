@@ -11,9 +11,10 @@ interface CustomerManagementProps {
   onFDSelected: (fdNumber: string) => void;
   triggerAddForm: boolean;
   onFormClosed: () => void;
+  userRole?: string;
 }
 
-export default function CustomerManagement({ onFDSelected, triggerAddForm, onFormClosed }: CustomerManagementProps) {
+export default function CustomerManagement({ onFDSelected, triggerAddForm, onFormClosed, userRole }: CustomerManagementProps) {
   const [customers, setCustomers] = useState<DBCustomer[]>([]);
   const [fds, setFds] = useState<FDMaster[]>([]);
   const [selectedCust, setSelectedCust] = useState<DBCustomer | null>(null);
@@ -749,21 +750,21 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
       )}
 
       {/* --- CUSTOMER MASTER TABLE (8 cols on big desktop) --- */}
-      <div className="xl:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+      <div className="xl:col-span-7 bg-white rounded-3xl shadow-2xs border border-slate-200/80 p-6 sm:p-7 flex flex-col justify-between">
         
         <div>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4 mb-6">
             <div>
-              <h3 className="text-md font-bold text-slate-950 flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 font-sans">
                 <Users className="h-5 w-5 text-blue-600" />
                 Depositors Database
               </h3>
-              <p className="text-xs text-slate-500">Master register of enrolled Fixed Deposit holders.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Master register of enrolled Fixed Deposit holders.</p>
             </div>
             
             <button
               onClick={handleOpenNewForm}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4.5 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md shadow-blue-600/10 transition-all active:scale-[0.98]"
             >
               <UserPlus className="h-4 w-4 text-white" />
               Enroll Depositor
@@ -772,48 +773,48 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
 
           {/* Search tool */}
           <div className="relative mb-5">
-            <Search className="absolute left-3.5 top-2.5 h-4.5 w-4.5 text-slate-400" />
+            <Search className="absolute left-3.5 top-3 h-4.5 w-4.5 text-slate-400" />
             <input
               type="text"
               placeholder="Search by Name, Mobile, Aadhaar, PAN..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50/50 focus:bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-semibold placeholder-slate-400 text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
             />
           </div>
 
           {/* Grid Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto border border-slate-200/80 rounded-2xl">
             <table className="min-w-full text-xs divide-y divide-slate-100 text-left">
               <thead>
-                <tr className="text-slate-500 font-bold uppercase tracking-wider bg-slate-50/50">
-                  <th className="px-3.5 py-2.5">Holder name</th>
-                  <th className="px-3.5 py-2.5">Mobile</th>
-                  <th className="px-3.5 py-2.5">City</th>
-                  <th className="px-3.5 py-2.5 text-center">Actions</th>
+                <tr className="text-slate-500 font-bold text-[10px] uppercase tracking-wider bg-slate-50/80">
+                  <th className="px-4 py-3">Holder name</th>
+                  <th className="px-4 py-3">Mobile</th>
+                  <th className="px-4 py-3">City</th>
+                  <th className="px-4 py-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 {paginatedCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-12 text-slate-400">No matching depositors found.</td>
+                    <td colSpan={4} className="text-center py-12 text-slate-400 font-medium">No matching depositors found.</td>
                   </tr>
                 ) : (
                   paginatedCustomers.map((c) => (
                     <tr 
                       key={c.id} 
                       onClick={() => handleSelectCust(c)}
-                      className={`hover:bg-slate-50 cursor-pointer transition-colors ${
-                        selectedCust?.id === c.id ? 'bg-blue-50' : ''
+                      className={`hover:bg-blue-50/40 cursor-pointer transition-colors ${
+                        selectedCust?.id === c.id ? 'bg-blue-50/70 border-l-4 border-l-blue-600' : ''
                       }`}
                     >
-                      <td className="px-3.5 py-3">
+                      <td className="px-4 py-3.5">
                         <span className="font-bold text-slate-900 block">{c.name}</span>
-                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">PAN: {c.pan_number}</span>
+                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">PAN: {c.pan_number || 'N/A'}</span>
                       </td>
-                      <td className="px-3.5 py-3 font-mono">{c.mobile_number}</td>
-                      <td className="px-3.5 py-3">{c.city}</td>
-                      <td className="px-3.5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-3.5 font-mono text-slate-700">{c.mobile_number}</td>
+                      <td className="px-4 py-3.5 text-slate-600">{c.city || 'N/A'}</td>
+                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-center items-center gap-1">
                           <button
                             onClick={() => handleOpenEditForm(c)}
@@ -822,13 +823,15 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
                           >
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => handleDeleteCust(c.id)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete Profile"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {userRole !== 'operator' && (
+                            <button
+                              onClick={() => handleDeleteCust(c.id)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Profile"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
