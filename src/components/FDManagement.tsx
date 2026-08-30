@@ -7,7 +7,7 @@ import PrintReceipt from './PrintReceipt';
 import { 
   PlusCircle, RefreshCw, Eye, Edit, Trash2, Printer, Search, 
   X, Save, CheckCircle, AlertTriangle, Play, HelpCircle, ArrowUpRight, FileText,
-  Calendar, Clock, Coins, User, ShieldAlert
+  Calendar, Clock, Coins, User, ShieldAlert, CheckCircle2, AlertCircle, Info
 } from 'lucide-react';
 
 const getTodayStr = () => {
@@ -927,82 +927,67 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
   return (
     <div className="space-y-6">
       {/* Toast alert */}
+      {/* Modern Floating Toast Notification */}
       {toast && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[99999] flex justify-center items-center p-4" aria-modal="true" role="dialog">
-          <div 
-            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-100 p-6 text-center space-y-4 animate-in fade-in zoom-in duration-200"
-            tabIndex={-1}
-            ref={(el) => el?.focus()}
-          >
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border ${
-              toast.type === 'success' 
-                ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                : 'bg-red-50 text-red-600 border-red-100'
+        <div className="fixed top-20 right-6 z-[99999] max-w-sm w-full animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className={`p-4 rounded-2xl shadow-xl border flex items-start gap-3.5 backdrop-blur-md ${
+            toast.type === 'success' 
+              ? 'bg-white/95 border-emerald-200 text-slate-800 shadow-emerald-500/10' 
+              : 'bg-white/95 border-rose-200 text-slate-800 shadow-rose-500/10'
+          }`}>
+            <div className={`p-2 rounded-xl shrink-0 ${
+              toast.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
             }`}>
-              {toast.type === 'success' ? (
-                <span className="text-3xl font-extrabold">✓</span>
-              ) : (
-                <span className="text-3xl font-extrabold">❌</span>
-              )}
+              {toast.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
             </div>
-            
-            <div className="space-y-2 text-center">
-              <h3 className={`text-md font-bold ${toast.type === 'success' ? 'text-emerald-800' : 'text-red-800'}`}>
-                {toast.type === 'success' ? 'Success' : 'Error'}
-              </h3>
-              <p className="text-sm font-semibold text-slate-800 whitespace-pre-line leading-relaxed">
+            <div className="flex-1 pt-0.5">
+              <h4 className={`text-xs font-bold ${toast.type === 'success' ? 'text-emerald-900' : 'text-rose-900'}`}>
+                {toast.type === 'success' ? 'Operation Completed' : 'Action Required'}
+              </h4>
+              <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-line leading-relaxed font-medium">
                 {toast.message}
               </p>
             </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setToast(null)}
-                className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold shadow-md transition-colors cursor-pointer text-white ${
-                  toast.type === 'success'
-                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'
-                    : 'bg-red-600 hover:bg-red-700 shadow-red-100'
-                }`}
-              >
-                Dismiss
-              </button>
-            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       )}
 
       {/* --- CONFIRMATION MODAL: FD EDIT --- */}
       {showEditConfirm && (
-        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-md z-[9999] flex justify-center items-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 p-6 text-center space-y-4">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto border border-blue-100">
-              <HelpCircle className="h-8 w-8 animate-bounce" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[9999] flex justify-center items-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-200/80 p-6 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto border border-blue-100">
+              <HelpCircle className="h-7 w-7" />
             </div>
             
             <div className="space-y-1.5 text-center">
-              <h3 className="text-lg font-bold text-slate-900">Confirm Ledger Update</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="text-base font-bold text-slate-900 font-sans">Confirm Ledger Update</h3>
+              <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
                 Are you sure you want to update this Fixed Deposit certificate? This will rewrite key ledger details and recalculate interest values in the audit logs.
               </p>
             </div>
 
-            <div className="bg-slate-50 rounded-xl p-4 text-xs space-y-2 text-left font-mono border border-slate-100">
+            <div className="bg-slate-50/80 rounded-2xl p-4 text-xs space-y-2.5 text-left font-mono border border-slate-200/80">
               <div className="flex justify-between">
-                <span className="text-slate-400 font-sans">FD Number:</span>
-                <span className="font-bold text-slate-800">{editFD.fd_number}</span>
+                <span className="text-slate-400 font-sans font-medium">FD Number:</span>
+                <span className="font-bold text-slate-900">{editFD.fd_number}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400 font-sans">Principal:</span>
-                <span className="font-bold text-slate-800">₹{editFD.deposit_amount.toLocaleString()}</span>
+                <span className="text-slate-400 font-sans font-medium">Principal:</span>
+                <span className="font-bold text-slate-900">₹{editFD.deposit_amount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400 font-sans">Tenure:</span>
-                <span className="font-bold text-slate-800">{editFD.tenure_months} months</span>
+                <span className="text-slate-400 font-sans font-medium">Tenure:</span>
+                <span className="font-bold text-slate-900">{editFD.tenure_months} months</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400 font-sans">Maturity:</span>
+                <span className="text-slate-400 font-sans font-medium">Maturity:</span>
                 <span className="font-bold text-blue-600">₹{editFD.maturity_amount.toLocaleString()}</span>
               </div>
             </div>
@@ -1018,7 +1003,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
               <button
                 type="button"
                 onClick={confirmUpdateFD}
-                className="bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-blue-200 cursor-pointer transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-blue-600/10 cursor-pointer transition-colors active:scale-[0.98]"
               >
                 Yes, Update
               </button>
@@ -1029,29 +1014,33 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
 
       {/* Generic Custom Confirmation Overlay Dialog */}
       {confirmDialog.show && (
-        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-md z-[99999] flex justify-center items-center p-4 overflow-hidden">
-          <div className="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-[500px] max-h-[90vh] border border-slate-100 flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[99999] flex justify-center items-center p-4 overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-2xl w-[90vw] max-w-[480px] max-h-[90vh] border border-slate-200/80 flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             
             {/* Scrollable Content */}
             <div className="p-6 text-center space-y-4 overflow-y-auto flex-1">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border ${
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto border ${
                 confirmDialog.isDanger 
-                  ? 'bg-red-50 text-red-600 border-red-100' 
+                  ? 'bg-rose-50 text-rose-600 border-rose-100' 
                   : 'bg-blue-50 text-blue-600 border-blue-100'
               }`}>
-                <HelpCircle className="h-8 w-8 animate-bounce" />
+                {confirmDialog.isDanger ? (
+                  <AlertTriangle className="h-7 w-7" />
+                ) : (
+                  <HelpCircle className="h-7 w-7" />
+                )}
               </div>
               
               <div className="space-y-1.5 text-center">
-                <h3 className="text-lg font-bold text-slate-900">{confirmDialog.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <h3 className="text-base font-bold text-slate-900 font-sans">{confirmDialog.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
                   {confirmDialog.message}
                 </p>
               </div>
             </div>
 
             {/* Fixed Footer */}
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 grid grid-cols-2 gap-3 shrink-0 rounded-b-2xl">
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 grid grid-cols-2 gap-3 shrink-0 rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setConfirmDialog(prev => ({ ...prev, show: false }))}
@@ -1062,10 +1051,10 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
               <button
                 type="button"
                 onClick={confirmDialog.onConfirm}
-                className={`text-white py-2.5 rounded-xl text-xs font-bold shadow-md transition-colors cursor-pointer ${
+                className={`text-white py-2.5 rounded-xl text-xs font-bold shadow-md transition-colors cursor-pointer active:scale-[0.98] ${
                   confirmDialog.isDanger 
-                    ? 'bg-red-600 hover:bg-red-700 shadow-red-200' 
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/10' 
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/10'
                 }`}
               >
                 {confirmDialog.confirmText || 'Confirm'}

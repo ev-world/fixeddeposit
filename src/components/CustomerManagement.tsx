@@ -4,7 +4,8 @@ import { DBCustomer, FDMaster, FDRenewalLedger, FDTransaction } from '../types';
 import { 
   Users, UserPlus, Eye, Edit, Trash2, Search, X, Check, Save, 
   RefreshCw, FileText, Landmark, User, HeartHandshake, ShieldAlert,
-  HelpCircle, Calendar, MapPin, Phone, CreditCard, AlertTriangle
+  HelpCircle, Calendar, MapPin, Phone, CreditCard, AlertTriangle,
+  CheckCircle2, AlertCircle, Info
 } from 'lucide-react';
 
 interface CustomerManagementProps {
@@ -21,6 +22,14 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
   const [myFDs, setMyFDs] = useState<FDMaster[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  const showToast = (type: 'success' | 'error' | 'info', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => {
+      setToast(prev => prev?.message === message ? null : prev);
+    }, 4000);
+  };
 
   // Renewal Ledger state
   const [profileTab, setProfileTab] = useState<'details' | 'fdHistory' | 'ledger' | 'renewalLedger'>('details');
@@ -284,6 +293,7 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
       setShowForm(false);
       onFormClosed();
       await loadCustomers();
+      showToast('success', isEditing ? 'Customer profile updated successfully.' : 'New depositor enrolled successfully.');
     } catch (err: any) {
       setFormError(err.message || 'Verification check failed. Please check inputs.');
     } finally {
@@ -303,8 +313,9 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
           await db.deleteCustomer(id);
           setSelectedCust(null);
           await loadCustomers();
+          showToast('success', 'Customer record deleted successfully.');
         } catch (err: any) {
-          alert(err.message || 'Failed to delete customer profile.');
+          showToast('error', err.message || 'Failed to delete customer profile.');
         } finally {
           setLoading(false);
         }
@@ -1308,17 +1319,56 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
 
       </div>
 
+      {/* Modern Floating Toast Notification */}
+      {toast && (
+        <div className="fixed top-20 right-6 z-[99999] max-w-sm w-full animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className={`p-4 rounded-2xl shadow-xl border flex items-start gap-3.5 backdrop-blur-md ${
+            toast.type === 'success' 
+              ? 'bg-white/95 border-emerald-200 text-slate-800 shadow-emerald-500/10'
+              : toast.type === 'error'
+              ? 'bg-white/95 border-rose-200 text-slate-800 shadow-rose-500/10'
+              : 'bg-white/95 border-blue-200 text-slate-800 shadow-blue-500/10'
+          }`}>
+            <div className={`p-2 rounded-xl shrink-0 ${
+              toast.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
+              toast.type === 'error' ? 'bg-rose-50 text-rose-600' :
+              'bg-blue-50 text-blue-600'
+            }`}>
+              {toast.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> :
+               toast.type === 'error' ? <AlertCircle className="h-5 w-5" /> :
+               <Info className="h-5 w-5" />}
+            </div>
+            <div className="flex-1 pt-0.5">
+              <h4 className={`text-xs font-bold ${
+                toast.type === 'success' ? 'text-emerald-900' :
+                toast.type === 'error' ? 'text-rose-900' :
+                'text-blue-900'
+              }`}>
+                {toast.type === 'success' ? 'Operation Completed' : toast.type === 'error' ? 'Action Required' : 'Information'}
+              </h4>
+              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed font-medium">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Custom Confirmation Overlay Dialog */}
       {confirmDialog.show && (
-        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-md z-[9999] flex justify-center items-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 p-6 text-center space-y-4">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto border border-red-100">
-              <HelpCircle className="h-8 w-8 animate-bounce" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[9999] flex justify-center items-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-200/80 p-6 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-100">
+              <AlertTriangle className="h-7 w-7" />
             </div>
             
             <div className="space-y-1.5 text-center">
-              <h3 className="text-lg font-bold text-slate-900">{confirmDialog.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <h3 className="text-base font-bold text-slate-900 font-sans">{confirmDialog.title}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
                 {confirmDialog.message}
               </p>
             </div>
@@ -1334,7 +1384,7 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
               <button
                 type="button"
                 onClick={confirmDialog.onConfirm}
-                className="bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-red-200 cursor-pointer transition-colors"
+                className="bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-rose-600/10 cursor-pointer transition-colors active:scale-[0.98]"
               >
                 Yes, Proceed
               </button>

@@ -5,7 +5,7 @@ import { CompanySettings, InterestMaster, TenureMaster, ActivityLog } from '../t
 import { 
   Building2, Percent, CalendarClock, Settings2, ShieldCheck, Database,
   FileCode2, Copy, Check, RotateCcw, Save, Trash2, Search, RefreshCw, FileText, Download,
-  HelpCircle
+  HelpCircle, CheckCircle2, AlertCircle, AlertTriangle, X
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -254,10 +254,32 @@ export default function SettingsPanel({ onSettingsUpdated }: SettingsPanelProps)
     <div className="space-y-6">
       {/* Toast Alert */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-lg shadow-xl text-white transition-all font-medium ${
-          toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
-        }`}>
-          <span>{toast.message}</span>
+        <div className="fixed top-20 right-6 z-[99999] max-w-sm w-full animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className={`p-4 rounded-2xl shadow-xl border flex items-start gap-3.5 backdrop-blur-md ${
+            toast.type === 'success' 
+              ? 'bg-white/95 border-emerald-200 text-slate-800 shadow-emerald-500/10' 
+              : 'bg-white/95 border-rose-200 text-slate-800 shadow-rose-500/10'
+          }`}>
+            <div className={`p-2 rounded-xl shrink-0 ${
+              toast.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+            }`}>
+              {toast.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+            </div>
+            <div className="flex-1 pt-0.5">
+              <h4 className={`text-xs font-bold ${toast.type === 'success' ? 'text-emerald-900' : 'text-rose-900'}`}>
+                {toast.type === 'success' ? 'Settings Updated' : 'Action Failed'}
+              </h4>
+              <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-line leading-relaxed font-medium">
+                {toast.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -771,19 +793,23 @@ export default function SettingsPanel({ onSettingsUpdated }: SettingsPanelProps)
       )}
       {/* Custom Confirmation Overlay Dialog */}
       {confirmDialog.show && (
-        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-md z-[9999] flex justify-center items-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 p-6 text-center space-y-4">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border ${
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[9999] flex justify-center items-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-200/80 p-6 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto border ${
               confirmDialog.isDanger 
-                ? 'bg-red-50 text-red-600 border-red-100' 
+                ? 'bg-rose-50 text-rose-600 border-rose-100' 
                 : 'bg-blue-50 text-blue-600 border-blue-100'
             }`}>
-              <HelpCircle className="h-8 w-8 animate-bounce" />
+              {confirmDialog.isDanger ? (
+                <AlertTriangle className="h-7 w-7" />
+              ) : (
+                <HelpCircle className="h-7 w-7" />
+              )}
             </div>
             
             <div className="space-y-1.5 text-center">
-              <h3 className="text-lg font-bold text-slate-900">{confirmDialog.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <h3 className="text-base font-bold text-slate-900 font-sans">{confirmDialog.title}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
                 {confirmDialog.message}
               </p>
             </div>
@@ -799,10 +825,10 @@ export default function SettingsPanel({ onSettingsUpdated }: SettingsPanelProps)
               <button
                 type="button"
                 onClick={confirmDialog.onConfirm}
-                className={`text-white py-2.5 rounded-xl text-xs font-bold shadow-md transition-colors cursor-pointer ${
+                className={`text-white py-2.5 rounded-xl text-xs font-bold shadow-md transition-colors cursor-pointer active:scale-[0.98] ${
                   confirmDialog.isDanger 
-                    ? 'bg-red-600 hover:bg-red-700 shadow-red-200' 
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/10' 
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/10'
                 }`}
               >
                 {confirmDialog.confirmText || 'Yes, Proceed'}
