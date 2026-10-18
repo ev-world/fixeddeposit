@@ -436,6 +436,7 @@ export default function App() {
             onNavigate={(screen) => setCurrentScreen(screen)}
             onQuickNewFD={handleQuickNewFD}
             onQuickNewCustomer={handleQuickNewCustomer}
+            onSelectFD={handleFDSelectFromOtherPanel}
           />
         )}
 

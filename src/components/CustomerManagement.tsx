@@ -1014,13 +1014,15 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
                           <th className="px-3 py-2">FD Key</th>
                           <th className="px-3 py-2 text-right">Principal</th>
                           <th className="px-3 py-2 text-center">Rate</th>
+                          <th className="px-3 py-2">Maturity Date</th>
+                          <th className="px-3 py-2 text-right">Maturity Amount</th>
                           <th className="px-3 py-2 text-center">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {myFDs.length === 0 ? (
                           <tr>
-                            <td colSpan={4} className="text-center py-8 text-slate-400">No active Fixed Deposits registered for this customer.</td>
+                            <td colSpan={6} className="text-center py-8 text-slate-400">No active Fixed Deposits registered for this customer.</td>
                           </tr>
                         ) : (
                           myFDs.map(f => (
@@ -1030,8 +1032,10 @@ export default function CustomerManagement({ onFDSelected, triggerAddForm, onFor
                               className="hover:bg-slate-50 cursor-pointer transition-colors"
                             >
                               <td className="px-3 py-2.5 font-mono font-bold text-blue-700">{f.fd_number}</td>
-                              <td className="px-3 py-2.5 text-right font-mono">₹{f.deposit_amount.toLocaleString()}</td>
+                              <td className="px-3 py-2.5 text-right font-mono font-semibold text-slate-900">₹{f.deposit_amount.toLocaleString('en-IN')}</td>
                               <td className="px-3 py-2.5 text-center text-emerald-700 font-bold">{f.interest_rate.toFixed(2)}%</td>
+                              <td className="px-3 py-2.5 font-mono text-slate-600">{f.maturity_date}</td>
+                              <td className="px-3 py-2.5 text-right font-mono font-bold text-blue-600">₹{f.maturity_amount.toLocaleString('en-IN')}</td>
                               <td className="px-3 py-2.5 text-center">
                                 <span className={`inline-block px-1.5 py-0.2 rounded font-bold uppercase text-[9px] ${
                                   f.status === 'Active' ? 'bg-emerald-100 text-emerald-800' :

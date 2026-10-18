@@ -91,7 +91,7 @@ export default function FDManagement({ initialSearchFDNumber, onClearInitialSear
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Renewed' | 'Closed' | 'Premature Closed' | 'Matured' | 'FD Renewal Ledger'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Renewal Dues (7D)' | 'Renewed' | 'Closed' | 'Premature Closed' | 'Matured' | 'FD Renewal Ledger'>('All');
 
   // Renewal Ledger State
   const [renewalLedgers, setRenewalLedgers] = useState<FDRenewalLedger[]>([]);
@@ -894,8 +894,14 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
     );
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const todayInMs = new Date(todayStr).getTime();
+    const sevenDaysLaterMs = todayInMs + 7 * 24 * 60 * 60 * 1000;
+
     if (statusFilter === 'All') return matchesSearch;
     if (statusFilter === 'Matured') return matchesSearch && f.status === 'Active' && f.maturity_date <= todayStr;
+    if (statusFilter === 'Renewal Dues (7D)') {
+      return matchesSearch && f.status === 'Active' && new Date(f.maturity_date).getTime() <= sevenDaysLaterMs;
+    }
     if (statusFilter === 'FD Renewal Ledger') return false;
     return matchesSearch && f.status === statusFilter;
   });
@@ -2176,7 +2182,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
 
             {/* Status Pills Tab Filter */}
             <div className="flex flex-wrap gap-1 bg-slate-100/70 p-1 rounded-2xl border border-slate-200/60">
-              {(['All', 'Active', 'Matured', 'Closed', 'Renewed', 'Premature Closed', 'FD Renewal Ledger'] as const).map((tab) => (
+              {(['All', 'Active', 'Renewal Dues (7D)', 'Matured', 'Closed', 'Renewed', 'Premature Closed', 'FD Renewal Ledger'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => { setStatusFilter(tab); setCurrentPage(1); }}
@@ -2346,6 +2352,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                     <th className="px-3 py-2.5 text-center">Rate</th>
                     <th className="px-3 py-2.5 text-center">Tenure</th>
                     <th className="px-3 py-2.5">Maturity Date</th>
+                    <th className="px-3 py-2.5 text-right">Maturity Amount</th>
                     <th className="px-3 py-2.5 text-center">Status</th>
                     <th className="px-3 py-2.5 text-center">Actions</th>
                   </tr>
@@ -2353,7 +2360,7 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   {paginatedFDs.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-12 text-slate-400 font-medium">No matching Fixed Deposits recorded.</td>
+                      <td colSpan={10} className="text-center py-12 text-slate-400 font-medium">No matching Fixed Deposits recorded.</td>
                     </tr>
                   ) : (
                     paginatedFDs.map((f) => (
@@ -2368,10 +2375,11 @@ New Maturity Amount: ₹${editFD.maturity_amount.toLocaleString()}`;
                           )}
                         </td>
                         <td className="px-3 py-3 font-mono text-[11px]">{f.customer_mobile}</td>
-                        <td className="px-3 py-3 text-right font-mono font-bold text-slate-900">₹{f.deposit_amount.toLocaleString()}</td>
+                        <td className="px-3 py-3 text-right font-mono font-bold text-slate-900">₹{f.deposit_amount.toLocaleString('en-IN')}</td>
                         <td className="px-3 py-3 text-center text-emerald-700 font-bold font-mono">{f.interest_rate.toFixed(2)}%</td>
                         <td className="px-3 py-3 text-center text-slate-500">{f.tenure_months} Mo</td>
                         <td className="px-3 py-3 font-mono text-[11px]">{f.maturity_date}</td>
+                        <td className="px-3 py-3 text-right font-mono font-bold text-blue-600">₹{f.maturity_amount.toLocaleString('en-IN')}</td>
                         <td className="px-3 py-3 text-center">
                           <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
                             f.status === 'Active' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
